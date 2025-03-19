@@ -9,12 +9,6 @@ fi
 filename=$1
 num_clients=$2
 
-# Chequeo de que el archivo no exista
-if [ -f $filename ]; then
-    echo "El archivo $filename ya existe. Por favor, elija otro nombre."
-    exit 1
-fi
-
 # Chequeo de que la cantidad de clientes sea un numero
 if ! [[ $num_clients =~ ^[0-9]+$ ]]; then
     echo "La cantidad de clientes debe ser un número entero."
