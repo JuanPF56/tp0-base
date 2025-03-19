@@ -52,7 +52,7 @@ def generate_compose(filename, n):
 
 def main():
     if len(sys.argv) != 3:
-        print("Usar como: python3 generador-compose.py <nombre del archivo de salida> <cantidad de clientes>")
+        print("Usar como: python3 generador-compose.py <nombre_archivo> <cantidad_clientes>")
         sys.exit(1)
     else:
         filename = sys.argv[1]
