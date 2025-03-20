@@ -11,8 +11,7 @@ def generate_compose(filename, n):
         "image": "server:latest",
         "entrypoint": "python3 /main.py",
         "environment": [
-            "PYTHONUNBUFFERED=1",
-            "LOGGING_LEVEL=DEBUG"
+            "PYTHONUNBUFFERED=1"
         ],
         "networks": ["testing_net"],
         "volumes": [
@@ -26,8 +25,7 @@ def generate_compose(filename, n):
             "image": "client:latest",
             "entrypoint": "/client",
             "environment": [
-                "CLI_ID=" + str(i),
-                "CLI_LOG_LEVEL=DEBUG"
+                "CLI_ID=" + str(i)
             ],
             "networks": ["testing_net"],
             "depends_on": ["server"],
