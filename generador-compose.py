@@ -14,7 +14,10 @@ def generate_compose(filename, n):
             "PYTHONUNBUFFERED=1",
             "LOGGING_LEVEL=DEBUG"
         ],
-        "networks": ["testing_net"]
+        "networks": ["testing_net"],
+        "volumes": [
+            "./server/config.ini:/config.ini"
+        ]
     }
 
     for i in range(1, n+1):
@@ -27,7 +30,10 @@ def generate_compose(filename, n):
                 "CLI_LOG_LEVEL=DEBUG"
             ],
             "networks": ["testing_net"],
-            "depends_on": ["server"]          
+            "depends_on": ["server"],
+            "volumes": [
+                "./client/config.yaml:/config.yaml"
+            ]    
         }
 
     compose = {
@@ -44,7 +50,7 @@ def generate_compose(filename, n):
                     ]
                 }
             }
-        }
+        }            
     }
 
     with open(filename, "w") as f:
