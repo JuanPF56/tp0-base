@@ -2,36 +2,30 @@
 
 ## Parte 1: Introducción a Docker
 
-### Ejercicio N°1:
-Definir un script de bash `generar-compose.sh` que permita crear una definición de Docker Compose con una cantidad configurable de clientes.  El nombre de los containers deberá seguir el formato propuesto: client1, client2, client3, etc. 
-
-El script deberá ubicarse en la raíz del proyecto y recibirá por parámetro el nombre del archivo de salida y la cantidad de clientes esperados:
-
-`./generar-compose.sh docker-compose-dev.yaml 5`
-
-Considerar que en el contenido del script pueden invocar un subscript de Go o Python:
-
-```
-#!/bin/bash
-echo "Nombre del archivo de salida: $1"
-echo "Cantidad de clientes: $2"
-python3 mi-generador.py $1 $2
-```
-
-En el archivo de Docker Compose de salida se pueden definir volúmenes, variables de entorno y redes con libertad, pero recordar actualizar este script cuando se modifiquen tales definiciones en los sucesivos ejercicios.
+### Ejercicio N°2:
+Modificar el cliente y el servidor para lograr que realizar cambios en el archivo de configuración no requiera reconstruír las imágenes de Docker para que los mismos sean efectivos. La configuración a través del archivo correspondiente (`config.ini` y `config.yaml`, dependiendo de la aplicación) debe ser inyectada en el container y persistida por fuera de la imagen (hint: `docker volumes`).
 
 
 ### Resolución
 
-Para resolver este ejercicio se creó un script de bash llamado `generar-compose.sh` que recibe como parámetros el nombre del archivo de salida y la cantidad de clientes esperados. El script chequea que se hayan pasado los parámetros correctamente y luego invoca a un script de Python llamado `genedor-compose.py` que se encarga de generar el archivo de Docker Compose con la cantidad de clientes especificada.
+Para la resolución de este ejercicio primero se evitó el copiado de los archivos de configuración a los contenedores en el momento de la construcción de las imágenes. Para ello se agregaron a un `.dockerignore` tanto en cliente como en servidor para ser excluídos. Además eliminó la línea que copiaba explícitamente el archivo de configuración de cliente en su Dockerfile al ya no ser necesario.
 
-El script de python utiliza la librería `pyyaml` para escribir el archivo. En el mismo se definen iterativamente los containers de los clientes, además del servidor y la red que los conecta. Se espera poder modificar fácilmente el script para agregar más configuraciones en los próximos ejercicios.
+Luego, se editó el script de generación de archivo de Docker Compose desarrollado en el ejercicio 1 para que los archivos de configuración sean montados como volúmenes en los contenedores. Para ello se agregaron las siguientes líneas en el archivo generado:
 
-Para ejecutar el script se debe correr el siguiente comando en la raíz del proyecto:
+#### Servidor
 
+```yaml
+    volumes:
+      - ./server/config.ini:/config.ini
 ```
-bash generar-compose.sh <nombre_archivo_salida> <cantidad_clientes>
+#### Cliente
+
+```yaml
+    volumes:
+      - ./client/config.yaml:/config.yaml
 ```
+
+Con esto, se logró que los cambios en los archivos de configuración sean efectivos sin necesidad de reconstruir las imágenes de Docker, al estar persistidos por fuera de las mismas.
 
 -----------------
 -----------------
