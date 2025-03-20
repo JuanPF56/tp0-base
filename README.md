@@ -8,7 +8,7 @@ Modificar el cliente y el servidor para lograr que realizar cambios en el archiv
 
 ### Resolución
 
-Para la resolución de este ejercicio primero se evitó el copiado de los archivos de configuración a los contenedores en el momento de la construcción de las imágenes. Para ello se agregaron a un `.dockerignore` tanto en cliente como en servidor para ser excluídos. Además eliminó la línea que copiaba explícitamente el archivo de configuración de cliente en su Dockerfile al ya no ser necesario.
+Para la resolución de este ejercicio primero se evitó el copiado de los archivos de configuración a los contenedores en el momento de la construcción de las imágenes. Para ello se agregaron a un `.dockerignore` tanto en cliente como en servidor para ser excluídos. Además se eliminó la línea que copiaba explícitamente el archivo de configuración de cliente en su Dockerfile al ya no ser necesario.
 
 Luego, se editó el script de generación de archivo de Docker Compose desarrollado en el ejercicio 1 para que los archivos de configuración sean montados como volúmenes en los contenedores. Para ello se agregaron las siguientes líneas en el archivo generado:
 
