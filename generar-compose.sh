@@ -19,5 +19,5 @@ echo "Generando archivo docker compose..."
 echo "Nombre del archivo de salida: $filename"
 echo "Cantidad de clientes: $num_clients"
 
-/usr/bin/python3 generador-compose.py $filename $num_clients
+python3 generador-compose.py $filename $num_clients
 echo "Archivo generado con éxito."
