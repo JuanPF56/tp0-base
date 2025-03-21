@@ -11,7 +11,7 @@ server_port=12345
 docker run --rm --network $network_name alpine sh -c "
     apk add --no-cache netcat-openbsd
     
-    response=\$(echo $test_message | nc -w $timeout -s $server_ip -p $server_port)
+    response=\$(echo $test_message | nc -w $timeout $server_ip $server_port)
 
     if
         [ \"\$response\" != \"$test_message\" ];
