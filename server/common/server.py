@@ -22,8 +22,9 @@ class Server:
         connections and will finish the current connections before
         exiting
         """
-        logging.info("action: sigterm | exiting server gracefully, closing server socket")
+        logging.info("SIGTERM received, stopping server")
         self.is_running = False
+        logging.info("Closing server socket")
         self._server_socket.close()
 
     def run(self):
