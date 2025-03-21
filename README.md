@@ -2,30 +2,23 @@
 
 ## Parte 1: Introducción a Docker
 
-### Ejercicio N°2:
-Modificar el cliente y el servidor para lograr que realizar cambios en el archivo de configuración no requiera reconstruír las imágenes de Docker para que los mismos sean efectivos. La configuración a través del archivo correspondiente (`config.ini` y `config.yaml`, dependiendo de la aplicación) debe ser inyectada en el container y persistida por fuera de la imagen (hint: `docker volumes`).
+### Ejercicio N°3:
+Crear un script de bash `validar-echo-server.sh` que permita verificar el correcto funcionamiento del servidor utilizando el comando `netcat` para interactuar con el mismo. Dado que el servidor es un echo server, se debe enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado.
+
+En caso de que la validación sea exitosa imprimir: `action: test_echo_server | result: success`, de lo contrario imprimir:`action: test_echo_server | result: fail`.
+
+El script deberá ubicarse en la raíz del proyecto. Netcat no debe ser instalado en la máquina _host_ y no se pueden exponer puertos del servidor para realizar la comunicación (hint: `docker network`). `
 
 
 ### Resolución
 
-Para la resolución de este ejercicio primero se evitó el copiado de los archivos de configuración a los contenedores en el momento de la construcción de las imágenes. Para ello se agregaron a un `.dockerignore` tanto en cliente como en servidor para ser excluídos. Además eliminó la línea que copiaba explícitamente el archivo de configuración de cliente en su Dockerfile al ya no ser necesario.
+Se creó el script `validar-echo-server.sh`, el cual levanta un contenedor de Docker temporal con una imagen de `alpine`, conectándolo a la red `tp0_testing_net`, que es la red configurada en los anteriores ejercicios en donde se encuentra el servidor. Luego, se instala `netcat` dentro del mismo para poder enviar un mensaje al servidor y verificar que el mismo lo recibe y lo devuelve correctamente. El script chequea que la ejecución del contenedor haya sido exitosa, e imprime un mensaje de éxito o fracaso según corresponda.
 
-Luego, se editó el script de generación de archivo de Docker Compose desarrollado en el ejercicio 1 para que los archivos de configuración sean montados como volúmenes en los contenedores. Para ello se agregaron las siguientes líneas en el archivo generado:
+Para ejecutar el script, simplemente se debe correr el comando `./validar-echo-server.sh` en la raíz del proyecto.
 
-#### Servidor
+El script requiere que se respeten los nombres/direcciones establecidas como ejemplos en el enunciado. Una posible mejora sería que el script tome como argumento el nombre de la red y la dirección y puerto del servidor, para que sea más genérico.
 
-```yaml
-    volumes:
-      - ./server/config.ini:/config.ini
-```
-#### Cliente
-
-```yaml
-    volumes:
-      - ./client/config.yaml:/config.yaml
-```
-
-Con esto, se logró que los cambios en los archivos de configuración sean efectivos sin necesidad de reconstruir las imágenes de Docker, al estar persistidos por fuera de las mismas.
+Se decidió utilizar una imagen de `alpine` para el contenedor temporal por simplicidad, pero se podría haber buscado una imagen más pequeña o con `netcat` preinstalado.
 
 -----------------
 -----------------
