@@ -70,6 +70,7 @@ func (c *Client) StartClientLoop() {
 		<-sigChan
 		c.is_running = false
 		log.Infof("SIGTERM received, stopping client %v", c.config.ID)
+		// If the connection is not closed, close it
 		if c.conn != nil {
 			c.conn.Close()
 			log.Infof("Closing server connection")
@@ -84,21 +85,34 @@ func (c *Client) StartClientLoop() {
 		c.createClientSocket()
 
 		// TODO: Modify the send to avoid short-write
-		fmt.Fprintf(
+		_, err := fmt.Fprintf(
 			c.conn,
 			"[CLIENT %v] Message N°%v\n",
 			c.config.ID,
 			msgID,
 		)
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		c.conn.Close()
+		// Check if the message was sent correctly
+		if err != nil {
+			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return
+		}
 
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		// Check if the message was received correctly
 		if err != nil {
 			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
 			return
+		}
+
+		// If connection is not closed, close it
+		if c.conn != nil {
+			c.conn.Close()
 		}
 
 		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
