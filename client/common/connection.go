@@ -46,13 +46,17 @@ func (c *Connection) SendMessage(msg []byte) (int, error) {
 	// Send the message size first
 	size := make([]byte, 4)
 	binary.BigEndian.PutUint32(size, uint32(len(msg)))
-	_, err := c.conn.Write(size)
-	if err != nil {
-		return 0, err
+	sent := 0
+	for sent < len(size) {
+		n, err := c.conn.Write(size[sent:])
+		if err != nil {
+			return sent, err
+		}
+		sent += n
 	}
 
 	// Send the message
-	sent := 0
+	sent = 0
 	for sent < len(msg) {
 		n, err := c.conn.Write(msg[sent:])
 		if err != nil {
@@ -71,15 +75,19 @@ func (c *Connection) ReceiveMessage() ([]byte, error) {
 
 	// Read the message size first
 	size := make([]byte, 4)
-	_, err := c.conn.Read(size)
-	if err != nil {
-		return nil, err
+	read := 0
+	for read < len(size) {
+		n, err := c.conn.Read(size[read:])
+		if err != nil {
+			return nil, err
+		}
+		read += n
 	}
 
 	// Read the message
 	msgSize := binary.BigEndian.Uint32(size)
 	buf := make([]byte, msgSize)
-	for read := 0; read < int(msgSize); {
+	for read = 0; read < int(msgSize); {
 		n, err := c.conn.Read(buf[read:])
 		if err != nil {
 			return nil, err
