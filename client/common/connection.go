@@ -38,7 +38,7 @@ func (c *Connection) CloseConnection() {
 }
 
 // SendMessage: Sends a message to the server avoiding short writes
-func (c *Connection) SendMessage(msg string) error {
+func (c *Connection) SendMessage(msg []byte) error {
 	if c.conn == nil {
 		return fmt.Errorf("Connection not initialized")
 	}
@@ -54,7 +54,7 @@ func (c *Connection) SendMessage(msg string) error {
 	// Send the message
 	sent := 0
 	for sent < len(msg) {
-		n, err := c.conn.Write([]byte(msg)[sent:])
+		n, err := c.conn.Write(msg[sent:])
 		if err != nil {
 			return err
 		}
@@ -64,16 +64,16 @@ func (c *Connection) SendMessage(msg string) error {
 }
 
 // ReceiveMessage: Receives a message from the server avoiding short reads
-func (c *Connection) ReceiveMessage() (string, error) {
+func (c *Connection) ReceiveMessage() ([]byte, error) {
 	if c.conn == nil {
-		return "", fmt.Errorf("Connection not initialized")
+		return nil, fmt.Errorf("Connection not initialized")
 	}
 
 	// Read the message size first
 	size := make([]byte, 4)
 	_, err := c.conn.Read(size)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Read the message
@@ -82,9 +82,9 @@ func (c *Connection) ReceiveMessage() (string, error) {
 	for read := 0; read < int(msgSize); {
 		n, err := c.conn.Read(buf[read:])
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		read += n
 	}
-	return string(buf), nil
+	return buf, nil
 }
