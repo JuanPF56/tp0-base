@@ -1,9 +1,6 @@
 package common
 
 import (
-	"bufio"
-	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,45 +19,35 @@ type ClientConfig struct {
 	LoopPeriod    time.Duration
 }
 
-// Client Entity that encapsulates how
+// Client Entity
 type Client struct {
 	config     ClientConfig
-	conn       net.Conn
+	conn       Connection
+	protocol   Protocol
 	is_running bool
 }
 
-// NewClient Initializes a new client receiving the configuration
-// as a parameter
+// NewClient: Initializes a new client with the given configuration
 func NewClient(config ClientConfig) *Client {
 	client := &Client{
 		config:     config,
+		protocol:   Protocol{},
 		is_running: true,
 	}
+	conn := NewConnection(config.ServerAddress, config.ID)
+	client.conn = *conn
 	return client
 }
 
-// CreateClientSocket Initializes client socket. In case of
-// failure, error is printed in stdout/stderr and exit 1
-// is returned
-func (c *Client) createClientSocket() error {
-	conn, err := net.Dial("tcp", c.config.ServerAddress)
-	if err != nil {
-		log.Criticalf(
-			"action: connect | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-	}
-	c.conn = conn
-	return nil
-}
+// StartClient: Sends bet message to the server based on env variables and waits for a response
+func (c *Client) StartClient() {
+	// Get environment variables
+	name := os.Getenv("NOMBRE")
+	surname := os.Getenv("APELLIDO")
+	dni := os.Getenv("DOCUMENTO")
+	birthdate := os.Getenv("NACIMIENTO")
+	number := os.Getenv("NUMERO")
 
-func (c *Client) CloseConnection() {
-	c.conn.Close()
-}
-
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop() {
 	// Signal handling to stop the client
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
@@ -70,59 +57,46 @@ func (c *Client) StartClientLoop() {
 		<-sigChan
 		c.is_running = false
 		log.Infof("SIGTERM received, stopping client %v", c.config.ID)
-		// If the connection is not closed, close it
-		if c.conn != nil {
-			c.conn.Close()
-			log.Infof("Closing server connection")
-		}
+		c.conn.CloseConnection()
 	}()
 
-	// There is an autoincremental msgID to identify every message sent
-	// Messages if the message amount threshold has not been surpassed
-	// If the client is set to not running, the loop is stopped.
-	for msgID := 1; c.is_running && msgID <= c.config.LoopAmount; msgID++ {
-		// Create the connection the server in every loop iteration. Send an
-		c.createClientSocket()
-
-		// TODO: Modify the send to avoid short-write
-		_, err := fmt.Fprintf(
-			c.conn,
-			"[CLIENT %v] Message N°%v\n",
+	err := c.conn.SendMessage(protocol.CreateBetMessage(name, surname, dni, birthdate, number))
+	if err != nil {
+		log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,
-			msgID,
+			err,
 		)
-		// Check if the message was sent correctly
-		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return
-		}
-
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		// Check if the message was received correctly
-		if err != nil {
-			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return
-		}
-
-		// If connection is not closed, close it
-		if c.conn != nil {
-			c.conn.Close()
-		}
-
-		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
-			c.config.ID,
-			msg,
-		)
-
-		// Wait a time between sending one message and the next one
-		time.Sleep(c.config.LoopPeriod)
-
+		return
 	}
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+
+	response, err := c.conn.ReceiveMessage()
+	if err != nil {
+		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
+	parsedResponse, err := c.protocol.ParseResponse(response)
+	if err != nil {
+		log.Errorf("action: parse_response | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
+
+	if parsedResponse == "OK" {
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
+			dni,
+			number,
+		)
+	} else {
+		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v",
+			dni,
+			number,
+		)
+	}
+
+	c.conn.CloseConnection()
 }
