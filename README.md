@@ -2,23 +2,18 @@
 
 ## Parte 1: Introducción a Docker
 
-### Ejercicio N°3:
-Crear un script de bash `validar-echo-server.sh` que permita verificar el correcto funcionamiento del servidor utilizando el comando `netcat` para interactuar con el mismo. Dado que el servidor es un echo server, se debe enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado.
-
-En caso de que la validación sea exitosa imprimir: `action: test_echo_server | result: success`, de lo contrario imprimir:`action: test_echo_server | result: fail`.
-
-El script deberá ubicarse en la raíz del proyecto. Netcat no debe ser instalado en la máquina _host_ y no se pueden exponer puertos del servidor para realizar la comunicación (hint: `docker network`). `
-
+### Ejercicio N°4:
+Modificar servidor y cliente para que ambos sistemas terminen de forma _graceful_ al recibir la signal SIGTERM. Terminar la aplicación de forma _graceful_ implica que todos los _file descriptors_ (entre los que se encuentran archivos, sockets, threads y procesos) deben cerrarse correctamente antes que el thread de la aplicación principal muera. Loguear mensajes en el cierre de cada recurso (hint: Verificar que hace el flag `-t` utilizado en el comando `docker compose down`).
 
 ### Resolución
 
-Se creó el script `validar-echo-server.sh`, el cual levanta un contenedor de Docker temporal con una imagen de `alpine`, conectándolo a la red `tp0_testing_net`, que es la red configurada en los anteriores ejercicios en donde se encuentra el servidor. Luego, se instala `netcat` dentro del mismo para poder enviar un mensaje al servidor y verificar que el mismo lo recibe y lo devuelve correctamente. El script chequea que la ejecución del contenedor haya sido exitosa, e imprime un mensaje de éxito o fracaso según corresponda.
+Para resolver este ejercicio se modificaron los archivos `client.go` y `server.py` para que ambos sistemas terminen de forma _graceful_ al recibir la señal SIGTERM.
 
-Para ejecutar el script, simplemente se debe correr el comando `./validar-echo-server.sh` en la raíz del proyecto.
+En ambos casos se agregó una variable booleana del estilo `is_running` que se utiliza para controlar si el sistema está corriendo o no.
 
-El script requiere que se respeten los nombres/direcciones establecidas como ejemplos en el enunciado. Una posible mejora sería que el script tome como argumento el nombre de la red y la dirección y puerto del servidor, para que sea más genérico.
+El servidor utiliza la librería `signal` para capturar la señal SIGTERM y cambiar el valor de la variable `is_running` a `False`, lo cual hará que el bucle deje de ejecutarse. Luego cerrará el socket aceptador de conexiones y terminará de responder al cliente actual antes de finalizar. En los próximos ejercicios se deberá considerar la correcta finalización de más recursos, dado que ahora mismo sólo manejamos los sockets para la comunicación con un cliente a la vez.
 
-Se decidió utilizar una imagen de `alpine` para el contenedor temporal por simplicidad, pero se podría haber buscado una imagen más pequeña o con `netcat` preinstalado.
+El cliente, por su parte, utiliza `canales` y `goroutines` para manejar la señal SIGTERM. Al recibir la señal, se notificará a una rutina que se encargará de setear la variable `is_running` a `False` y cerrar el socket de conexión con el servidor si es que se encuentra abierto. Así como en el servidor, en los próximos ejercicios se deberá controlar que no queden otros recursos que puedan quedar abiertos.
 
 -----------------
 -----------------
