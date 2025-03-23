@@ -55,19 +55,25 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+func (c *Client) CloseConnection() {
+	c.conn.Close()
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
-
 	// Signal handling to stop the client
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 
 	// Go routine to handle the signal
 	go func() {
+		<-sigChan
 		c.is_running = false
 		log.Infof("SIGTERM received, stopping client %v", c.config.ID)
-		c.conn.Close()
-		log.Infof("Closing connection to server")
+		if c.conn != nil {
+			c.conn.Close()
+			log.Infof("Closing server connection")
+		}
 	}()
 
 	// There is an autoincremental msgID to identify every message sent
