@@ -3,6 +3,7 @@ package common
 import (
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -41,12 +42,22 @@ func NewClient(config ClientConfig) *Client {
 
 // StartClient: Sends bet message to the server based on env variables and waits for a response
 func (c *Client) StartClient() {
-	// Get environment variables
+	// Get environment variables (these values will be replaced by reading from a file in the future)
 	name := os.Getenv("NOMBRE")
 	surname := os.Getenv("APELLIDO")
-	dni := os.Getenv("DOCUMENTO")
+	dniStr := os.Getenv("DOCUMENTO")
+	dni, err := strconv.Atoi(dniStr)
+	if err != nil {
+		log.Errorf("action: convert_dni | result: fail | error: %v", err)
+		return
+	}
 	birthdate := os.Getenv("NACIMIENTO")
-	number := os.Getenv("NUMERO")
+	numberStr := os.Getenv("NUMERO")
+	number, err := strconv.Atoi(numberStr)
+	if err != nil {
+		log.Errorf("action: convert_number | result: fail | error: %v", err)
+		return
+	}
 
 	// Signal handling to stop the client
 	sigChan := make(chan os.Signal, 1)
