@@ -31,7 +31,11 @@ def generate_compose(filename, n):
             "depends_on": ["server"],
             "volumes": [
                 "./client/config.yaml:/config.yaml"
-            ]    
+            ],
+            "env_file":
+            [
+                "./client/.env"
+            ]
         }
 
     compose = {

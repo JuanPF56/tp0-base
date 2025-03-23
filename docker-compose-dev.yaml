@@ -11,8 +11,52 @@ services:
     depends_on:
     - server
     entrypoint: /client
+    env_file:
+    - ./client/.env
     environment:
     - CLI_ID=1
+    image: client:latest
+    networks:
+    - testing_net
+    volumes:
+    - ./client/config.yaml:/config.yaml
+  client2:
+    container_name: client2
+    depends_on:
+    - server
+    entrypoint: /client
+    env_file:
+    - ./client/.env
+    environment:
+    - CLI_ID=2
+    image: client:latest
+    networks:
+    - testing_net
+    volumes:
+    - ./client/config.yaml:/config.yaml
+  client3:
+    container_name: client3
+    depends_on:
+    - server
+    entrypoint: /client
+    env_file:
+    - ./client/.env
+    environment:
+    - CLI_ID=3
+    image: client:latest
+    networks:
+    - testing_net
+    volumes:
+    - ./client/config.yaml:/config.yaml
+  client4:
+    container_name: client4
+    depends_on:
+    - server
+    entrypoint: /client
+    env_file:
+    - ./client/.env
+    environment:
+    - CLI_ID=4
     image: client:latest
     networks:
     - testing_net
