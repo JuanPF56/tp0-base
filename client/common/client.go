@@ -71,7 +71,7 @@ func (c *Client) StartClient() {
 		c.conn.CloseConnection()
 	}()
 
-	err := c.conn.SendMessage(protocol.CreateBetMessage(name, surname, dni, birthdate, number))
+	_, err = c.conn.SendMessage(c.protocol.CreateBetMessage(name, surname, dni, birthdate, number))
 	if err != nil {
 		log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,

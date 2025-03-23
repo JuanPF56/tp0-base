@@ -38,9 +38,9 @@ func (c *Connection) CloseConnection() {
 }
 
 // SendMessage: Sends a message to the server avoiding short writes
-func (c *Connection) SendMessage(msg []byte) error {
+func (c *Connection) SendMessage(msg []byte) (int, error) {
 	if c.conn == nil {
-		return fmt.Errorf("Connection not initialized")
+		return 0, fmt.Errorf("connection not initialized")
 	}
 
 	// Send the message size first
@@ -48,7 +48,7 @@ func (c *Connection) SendMessage(msg []byte) error {
 	binary.BigEndian.PutUint32(size, uint32(len(msg)))
 	_, err := c.conn.Write(size)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Send the message
@@ -56,17 +56,17 @@ func (c *Connection) SendMessage(msg []byte) error {
 	for sent < len(msg) {
 		n, err := c.conn.Write(msg[sent:])
 		if err != nil {
-			return err
+			return sent, err
 		}
 		sent += n
 	}
-	return nil
+	return sent, nil
 }
 
 // ReceiveMessage: Receives a message from the server avoiding short reads
 func (c *Connection) ReceiveMessage() ([]byte, error) {
 	if c.conn == nil {
-		return nil, fmt.Errorf("Connection not initialized")
+		return nil, fmt.Errorf("connection not initialized")
 	}
 
 	// Read the message size first
