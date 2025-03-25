@@ -40,9 +40,7 @@ func (p *Protocol) CreateBetMessage(
 	number int) []byte {
 	// Create the message as a byte slice
 	msg := make([]byte, 0)
-
-	// Calculate length of the message
-	length := len(name) + len(surname) + len(birthdate) + 16
+	length := len(name) + len(surname) + len(birthdate) + 12
 
 	// Append the TLV fields
 
@@ -63,24 +61,24 @@ func (p *Protocol) CreateBetMessage(
 	msg = append(msg, []byte(name)...)
 
 	// Surname
-	msg = append(msg, 0x02)
+	msg = append(msg, 0x03)
 	msg = append(msg, byte(len(surname)))
 	msg = append(msg, []byte(surname)...)
 
 	// DNI
-	msg = append(msg, 0x01)
+	msg = append(msg, 0x04)
 	dniBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(dniBytes, uint32(dni))
 	msg = append(msg, byte(len(dniBytes)))
 	msg = append(msg, dniBytes...)
 
 	// Birthdate
-	msg = append(msg, 0x02)
+	msg = append(msg, 0x05)
 	msg = append(msg, byte(len(birthdate)))
 	msg = append(msg, []byte(birthdate)...)
 
 	// Number
-	msg = append(msg, 0x01)
+	msg = append(msg, 0x06)
 	numberBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(numberBytes, uint32(number))
 	msg = append(msg, byte(len(numberBytes)))

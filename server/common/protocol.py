@@ -1,3 +1,4 @@
+import logging
 from common.utils import Bet
 
 """
@@ -34,8 +35,10 @@ class Protocol:
         Parse the message received from the client
 
         The message is expected to follow the TLV format indicated in the
-        class description.
+        class description. The fields can arrive in any order, but they
+        are expected to be all present.
         """
+
         # Check that the message is of type Bet
         if message[0] != 0x04:
             raise ValueError("invalid message type, expected Bet")
@@ -44,11 +47,16 @@ class Protocol:
 
         # Parse the message
         fields = {}
+        length = 0
         start = 2
         while start < len(message):
-            field_type, field_value = self._get_next_field(message, start)
+            field_type, field_value, field_length = self._get_next_field(message, start)
             fields[field_type] = field_value
-            start += 2 + len(field_value)
+            length += field_length
+            start += 2 + field_length
+
+        if len(fields) != 6 or length != total_length:
+            raise ValueError("invalid message format")
         
         try:
             return Bet(fields[0x01], fields[0x02], fields[0x03], fields[0x04], fields[0x05], fields[0x06])
@@ -68,7 +76,12 @@ class Protocol:
         field_length = message[start + 1]
         # Get field value
         field_value = message[start + 2:start + 2 + field_length]
-        return field_type, field_value
+    
+        if field_type == 0x01 or field_type == 0x04 or field_type == 0x06:
+            field_value = int.from_bytes(field_value, byteorder='big')
+        else:
+            field_value = field_value.decode('utf-8')
+        return field_type, field_value, field_length
     
     def createResponse(self, success):
         """
