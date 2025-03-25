@@ -53,9 +53,9 @@ class Server:
             success = self._store_bet(bet)
             client_connection.sendMsg(self.protocol.createResponse(success))
         except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: receive_message | result: fail | error: {e}")
         except ValueError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: receive_message | result: fail | error: {e}")
             client_connection.sendMsg(self.protocol.createResponse(False))
         finally:
             client_connection.close()
@@ -70,8 +70,8 @@ class Server:
         """
         try:
             store_bets([bet])
-            logging.info("action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
+            logging.info(f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
             return True
         except OSError as e:
-            logging.error("action: apuesta_almacenada | result: fail | error: {e}")
+            logging.error(f"action: apuesta_almacenada | result: fail | error: {e}")
             return False

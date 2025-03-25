@@ -1,4 +1,4 @@
-
+import socket
 
 class Connection:
     def __init__(self, socket):
@@ -16,7 +16,7 @@ class Connection:
         # Send the message
         self._socket.sendall(msg)
 
-    def recvMsg(self, size):
+    def recvMsg(self):
         """
         Receive message from the client
 
