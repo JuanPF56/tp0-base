@@ -55,7 +55,7 @@ class Protocol:
             length += field_length
             start += 2 + field_length
 
-        logging.DEBUG(f"action: receive_message | result: success | fields: {fields}")
+        logging.debug(f"action: receive_message | result: success | fields: {fields}")
 
         if len(fields) != 6 or length != total_length:
             raise ValueError("invalid message format")
