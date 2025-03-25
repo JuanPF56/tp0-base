@@ -1,6 +1,8 @@
 import socket
 import logging
 
+from common.connection import Connection
+
 class Acceptor:
     def __init__(self, port, listen_backlog):
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,7 +26,7 @@ class Acceptor:
             return None
 
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
-        return c
+        return Connection(c)
     
     def close(self):
         """
