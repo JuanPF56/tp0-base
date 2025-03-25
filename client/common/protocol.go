@@ -22,17 +22,13 @@ type Protocol struct {
  	* 0x01: Integer (4 bytes)
  	* 0x02: String (n bytes)
 	* 0x03: Character (1 byte)
-
- * Protocol messages:
-	* Bet message:
-		* Agency ID: Integer
-		* Name: String
-		* Surname: String
-		* DNI: Integer
-		* Birthdate: String
-		* Number: Integer
-	* Response message (will be changed in future iterations):
-		* Result: Character (0 for success, 1 for failure)
+	* 0x04: Bet (n bytes, composed of the following fields)
+		* 0x01: Agency ID
+		* 0x02: Name
+		* 0x03: Surname
+		* 0x04: DNI
+		* 0x05: Birthdate
+		* 0x06: Number
 */
 
 // CreateBetMessage: Creates a bet message with the given parameters using TLV (type, length, value) format
@@ -45,7 +41,14 @@ func (p *Protocol) CreateBetMessage(
 	// Create the message as a byte slice
 	msg := make([]byte, 0)
 
+	// Calculate length of the message
+	length := len(name) + len(surname) + len(birthdate) + 16
+
 	// Append the TLV fields
+
+	// Type (Bet)
+	msg = append(msg, 0x04)
+	msg = append(msg, byte(length))
 
 	// Agency ID
 	msg = append(msg, 0x01)
