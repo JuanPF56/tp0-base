@@ -1,14 +1,11 @@
-import socket
 import logging
 import signal
 
+from common.acceptor import Acceptor
+
 class Server:
     def __init__(self, port, listen_backlog):
-        # Initialize server socket
-        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.bind(('', port))
-        self._server_socket.listen(listen_backlog)
-
+        self.acceptor = Acceptor(port, listen_backlog)
         self.is_running = True
 
         # Register signal handler for SIGTERM signal
@@ -24,8 +21,8 @@ class Server:
         """
         logging.info("SIGTERM received, stopping server")
         self.is_running = False
-        logging.info("Closing server socket")
-        self._server_socket.close()
+        logging.info("Closing acceptor connection")
+        self.acceptor.close()
 
     def run(self):
         """
@@ -37,9 +34,9 @@ class Server:
         """
 
         while self.is_running:
-            client_sock = self.__accept_new_connection()
-            if client_sock is not None:
-                self.__handle_client_connection(client_sock)
+            client_connection = self.acceptor.accept()
+            if client_connection is not None:
+                self.__handle_client_connection(client_connection)
 
     def __handle_client_connection(self, client_sock):
         """
@@ -60,21 +57,3 @@ class Server:
         finally:
             client_sock.close()
 
-    def __accept_new_connection(self):
-        """
-        Accept new connections
-
-        Function blocks until a connection to a client is made.
-        Then connection created is printed and returned
-        """
-
-        # Connection arrived
-        logging.info('action: accept_connections | result: in_progress')
-        try:
-            c, addr = self._server_socket.accept()
-        except OSError as e:
-            # If server socket was closed, return None
-            return None
-
-        logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
-        return c
