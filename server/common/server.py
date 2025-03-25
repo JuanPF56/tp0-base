@@ -50,6 +50,7 @@ class Server:
         """
         try:
             bet = self.protocol.parseBetMessage(client_connection.recvMsg())
+            logging.DEBUG(f"action: receive_message | result: success | agency: {bet.agency} | name: {bet.name} | surname: {bet.surname} | document: {bet.document} | birthdate: {bet.birthdate} | number: {bet.number}")
             success = self._store_bet(bet)
             client_connection.sendMsg(self.protocol.createResponse(success))
         except OSError as e:

@@ -34,7 +34,7 @@ def generate_compose(filename, n):
             ],
             "env_file":
             [
-                "./client/.env"
+                f"./client/.env{i}"
             ]
         }
 

@@ -12,7 +12,7 @@ services:
     - server
     entrypoint: /client
     env_file:
-    - ./client/.env
+    - ./client/.env1
     environment:
     - CLI_ID=1
     image: client:latest
@@ -26,7 +26,7 @@ services:
     - server
     entrypoint: /client
     env_file:
-    - ./client/.env
+    - ./client/.env2
     environment:
     - CLI_ID=2
     image: client:latest
@@ -40,7 +40,7 @@ services:
     - server
     entrypoint: /client
     env_file:
-    - ./client/.env
+    - ./client/.env3
     environment:
     - CLI_ID=3
     image: client:latest
@@ -54,7 +54,7 @@ services:
     - server
     entrypoint: /client
     env_file:
-    - ./client/.env
+    - ./client/.env4
     environment:
     - CLI_ID=4
     image: client:latest
