@@ -111,8 +111,8 @@ func (p *Protocol) ParseResponse(msg []byte) (string, error) {
 
 	response := "OK"
 
-	// Check the value (0 for success, 1 for failure)
-	if msg[2] != 0 {
+	// Check the value (0 for failure, 1 for success)
+	if msg[2] != 1 {
 		response = "FAIL"
 	}
 
