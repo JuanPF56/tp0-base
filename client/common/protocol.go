@@ -6,7 +6,9 @@ import (
 )
 
 // Protocol Entity
-type Protocol struct{}
+type Protocol struct {
+	id int
+}
 
 /*
  * Protocol definition:
@@ -20,6 +22,17 @@ type Protocol struct{}
  	* 0x01: Integer (4 bytes)
  	* 0x02: String (n bytes)
 	* 0x03: Character (1 byte)
+
+ * Protocol messages:
+	* Bet message:
+		* Agency ID: Integer
+		* Name: String
+		* Surname: String
+		* DNI: Integer
+		* Birthdate: String
+		* Number: Integer
+	* Response message (will be changed in future iterations):
+		* Result: Character (0 for success, 1 for failure)
 */
 
 // CreateBetMessage: Creates a bet message with the given parameters using TLV (type, length, value) format
@@ -33,6 +46,13 @@ func (p *Protocol) CreateBetMessage(
 	msg := make([]byte, 0)
 
 	// Append the TLV fields
+
+	// Agency ID
+	msg = append(msg, 0x01)
+	agencyIDBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(agencyIDBytes, uint32(p.id))
+	msg = append(msg, byte(len(agencyIDBytes)))
+	msg = append(msg, agencyIDBytes...)
 
 	// Name
 	msg = append(msg, 0x02)
