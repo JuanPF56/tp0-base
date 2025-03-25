@@ -26,7 +26,10 @@ class Connection:
         prevent short reads
         """
         # Receive the length of the message
-        length = int.from_bytes(self._socket.recv(4), byteorder='big')
+        length_data = b''
+        while len(length_data) < 4:
+            length_data += self._socket.recv(4 - len(length_data))
+        length = int.from_bytes(length_data, byteorder='big')
         # Receive the message
         data = b''
         while len(data) < length:
