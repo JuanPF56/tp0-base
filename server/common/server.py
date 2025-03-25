@@ -2,10 +2,13 @@ import logging
 import signal
 
 from common.acceptor import Acceptor
+from common.protocol import Protocol
+from common.utils import store_bets
 
 class Server:
     def __init__(self, port, listen_backlog):
         self.acceptor = Acceptor(port, listen_backlog)
+        self.protocol = Protocol()
         self.is_running = True
 
         # Register signal handler for SIGTERM signal
@@ -38,7 +41,7 @@ class Server:
             if client_connection is not None:
                 self.__handle_client_connection(client_connection)
 
-    def __handle_client_connection(self, client_sock):
+    def __handle_client_connection(self, client_connection):
         """
         Read message from a specific client socket and closes the socket
 
@@ -46,14 +49,29 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            bet = self.protocol.parseBetMessage(client_connection.recvMsg())
+            success = self._store_bet(bet)
+            client_connection.sendMsg(self.protocol.createResponse(success))
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
+        except ValueError as e:
+            logging.error("action: receive_message | result: fail | error: {e}")
+            client_connection.sendMsg(self.protocol.createResponse(False))
         finally:
-            client_sock.close()
+            client_connection.close()
 
+
+    def _store_bet(self, bet):
+        """
+        Store the bet in the storage file
+
+        Function stores the bet in the storage file and returns a boolean
+        indicating if the operation was successful
+        """
+        try:
+            store_bets([bet])
+            logging.info("action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
+            return True
+        except OSError as e:
+            logging.error("action: apuesta_almacenada | result: fail | error: {e}")
+            return False
