@@ -1,19 +1,89 @@
 # TP0: Docker + Comunicaciones + Concurrencia
 
-## Parte 1: Introducción a Docker
+## Parte 2: Repaso de Comunicaciones
 
-### Ejercicio N°4:
-Modificar servidor y cliente para que ambos sistemas terminen de forma _graceful_ al recibir la signal SIGTERM. Terminar la aplicación de forma _graceful_ implica que todos los _file descriptors_ (entre los que se encuentran archivos, sockets, threads y procesos) deben cerrarse correctamente antes que el thread de la aplicación principal muera. Loguear mensajes en el cierre de cada recurso (hint: Verificar que hace el flag `-t` utilizado en el comando `docker compose down`).
+Las secciones de repaso del trabajo práctico plantean un caso de uso denominado **Lotería Nacional**. Para la resolución de las mismas deberá utilizarse como base el código fuente provisto en la primera parte, con las modificaciones agregadas en el ejercicio 4.
+
+### Ejercicio N°5:
+Modificar la lógica de negocio tanto de los clientes como del servidor para nuestro nuevo caso de uso.
+
+#### Cliente
+Emulará a una _agencia de quiniela_ que participa del proyecto. Existen 5 agencias. Deberán recibir como variables de entorno los campos que representan la apuesta de una persona: nombre, apellido, DNI, nacimiento, numero apostado (en adelante 'número'). Ej.: `NOMBRE=Santiago Lionel`, `APELLIDO=Lorca`, `DOCUMENTO=30904465`, `NACIMIENTO=1999-03-17` y `NUMERO=7574` respectivamente.
+
+Los campos deben enviarse al servidor para dejar registro de la apuesta. Al recibir la confirmación del servidor se debe imprimir por log: `action: apuesta_enviada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+
+#### Servidor
+Emulará a la _central de Lotería Nacional_. Deberá recibir los campos de la cada apuesta desde los clientes y almacenar la información mediante la función `store_bet(...)` para control futuro de ganadores. La función `store_bet(...)` es provista por la cátedra y no podrá ser modificada por el alumno.
+Al persistir se debe imprimir por log: `action: apuesta_almacenada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+
+#### Comunicación:
+Se deberá implementar un módulo de comunicación entre el cliente y el servidor donde se maneje el envío y la recepción de los paquetes, el cual se espera que contemple:
+* Definición de un protocolo para el envío de los mensajes.
+* Serialización de los datos.
+* Correcta separación de responsabilidades entre modelo de dominio y capa de comunicación.
+* Correcto empleo de sockets, incluyendo manejo de errores y evitando los fenómenos conocidos como [_short read y short write_](https://cs61.seas.harvard.edu/site/2018/FileDescriptors/).
 
 ### Resolución
 
-Para resolver este ejercicio se modificaron los archivos `client.go` y `server.py` para que ambos sistemas terminen de forma _graceful_ al recibir la señal SIGTERM.
+La resolución de este ejercicio conllevó un gran refactor del código original. Tanto en cliente como en servidor se separararon las responsabilidades en distintas entidades: se mantuvieron `Client` y `Server` para la lógica principal, se agregaron entidades `Connection` para encapsular el manejo de sockets (delegando la responsabilidad de verificar que no ocurran short reads o short writes) y `Protocol` para manejar la serialización y deserialización de los mensajes. El servidor además cuenta con una entidad `Acceptor` que se encarga de aceptar conexiones entrantes.
 
-En ambos casos se agregó una variable booleana del estilo `is_running` que se utiliza para controlar si el sistema está corriendo o no.
+Estas entidades podrán ser utilizadas y expandidas en los próximos ejercicios en la implementación de más funcionalidades y eventualmente en la concurrencia.
 
-El servidor utiliza la librería `signal` para capturar la señal SIGTERM y cambiar el valor de la variable `is_running` a `False`, lo cual hará que el bucle deje de ejecutarse. Luego cerrará el socket aceptador de conexiones y terminará de responder al cliente actual antes de finalizar. En los próximos ejercicios se deberá considerar la correcta finalización de más recursos, dado que ahora mismo sólo manejamos los sockets para la comunicación con un cliente a la vez.
+Además, para poder probar la correcta funcionalidad de la comunicación, se agregaron archivos `.env` para cada cliente con los datos de la apuesta a enviar al servidor. Los datos son entonces definidos como variables de entorno en la ejecución de los containers. Esto es sólo de ejemplo para este ejercicio, las apuestas futuras serán leídas de archivos.
 
-El cliente, por su parte, utiliza `canales` y `goroutines` para manejar la señal SIGTERM. Al recibir la señal, se notificará a una rutina que se encargará de setear la variable `is_running` a `False` y cerrar el socket de conexión con el servidor si es que se encuentra abierto. Así como en el servidor, en los próximos ejercicios se deberá controlar que no queden otros recursos que puedan quedar abiertos.
+#### Protocolo
+
+El protocolo de comunicación se basa en el formato _TLV (Type-Length-Value)_. Cada mensaje enviado esta compuesto por una serie de campos, cada uno con un tipo, un largo y un valor. El tipo y el largo tienen un tamaño fijo de 1 byte, mientras que el valor puede tener un largo variable (expresado en el campo de largo). Como se puede observar, el largo máximo de un campo es de 255 bytes, lo cual puede llegar a ser insuficiente en algunos mensajes. Probablemente esto sea modificado en futuros ejercicios, pero se considera suficiente para el alcance del presente.
+
+---------------------------------------
+El protocolo define los siguientes tipos:
+
+* 0x01: Integer (4 bytes)
+* 0x02: String (n bytes)
+* 0x03: Character (1 byte)
+* 0x04: Bet (n bytes), compuesto a su vez por los siguientes campos:
+    * 0x01: Agency ID (Int)
+    * 0x02: Name (String)
+    * 0x03: Surname (String)
+    * 0x04: DNI (Int)
+    * 0x05: Birthdate (String)
+    * 0x06: Number (Int)
+----------------------------------------
+Para la serialización de las apuestas de los clientes se usa el tipo `Bet`, que es un tipo compuesto por los campos mencionados. Los subcampos de la apuesta pueden ser serializados en cualquier orden, ya que el protocolo se encarga de identificarlos. Sin embargo, se requiere que todos los campos estén presentes.
+
+Para las respuestas del servidor se utiliza un tipo `Character`. En caso de éxito, el valor será 1, en caso de error, el valor será 0.
+
+Los campos de números enteros se serializan en formato big-endian.
+
+##### Ejemplo de mensaje
+
+Supongamos que el cliente (agencia) 1 envía la siguiente apuesta:
+
+```
+Nombre: "Santiago Lionel"
+Apellido: "Lorca"
+DNI: 30904465
+Nacimiento: "1999-03-17"
+Número: 7574
+```
+
+El mensaje serializado sería (en hexadecimal):
+
+```
+04 2A (Bet)
+    01 04 00 00 00 01 (Agency ID: 1)
+    02 0F 53 61 6E 74 69 61 67 6F 20 4C 69 6F 6E 65 6C (Name: "Santiago Lionel")
+    03 05 4C 6F 72 63 61 (Surname: "Lorca")
+    04 04 01 D7 90 91 (DNI: 30904465)
+    05 0A 31 39 39 39 2D 30 33 2D 31 37 (Birthdate: "1999-03-17")
+    06 04 00 00 1D 96 (Number: 7574)
+```
+
+Una respuesta exitosa del servidor sería simplemente `03 01 01` (Character: 1). Esto podría haberse manejado por fuera del formato TLV envíando simplemente un byte, pero se optó por mantener la consistencia en el protocolo para que sea fácilmente extensible en el futuro ante respuestas más complejas.
+
+#### Conexión
+
+Las entidades `Connection` (como se mencionó anteriormente) se encargan de manejar los sockets y evitar los problemas de short reads y short writes. Para ello, se envía siempre primero el largo del mensaje y luego el mensaje en sí. Esto permite que el receptor sepa cuántos bytes debe leer para recibir el mensaje completo, evitando que se quede esperando por más bytes o que lea de más. Esto se hace de manera independiente de la serialización de los mensajes, para que el protocolo pueda ser modificado sin afectar la comunicación y no se mezclen las responsabilidades.
 
 -----------------
 -----------------
