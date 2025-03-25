@@ -17,16 +17,9 @@ type Protocol struct{}
 	* Value: n bytes
 
  * Protocol types:
- 	* 0x01: Name
- 	* 0x02: Surname
- 	* 0x03: DNI
- 	* 0x04: Birthdate
- 	* 0x05: Number
-	* 0x06: Response
-
- * Response values:
- 	* 0x00: OK
-	* 0x01: Error
+ 	* 0x01: Integer (4 bytes)
+ 	* 0x02: String (n bytes)
+	* 0x03: Character (1 byte)
 */
 
 // CreateBetMessage: Creates a bet message with the given parameters using TLV (type, length, value) format
@@ -42,7 +35,7 @@ func (p *Protocol) CreateBetMessage(
 	// Append the TLV fields
 
 	// Name
-	msg = append(msg, 0x01)
+	msg = append(msg, 0x02)
 	msg = append(msg, byte(len(name)))
 	msg = append(msg, []byte(name)...)
 
@@ -52,19 +45,19 @@ func (p *Protocol) CreateBetMessage(
 	msg = append(msg, []byte(surname)...)
 
 	// DNI
-	msg = append(msg, 0x03)
+	msg = append(msg, 0x01)
 	dniBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(dniBytes, uint32(dni))
 	msg = append(msg, byte(len(dniBytes)))
 	msg = append(msg, dniBytes...)
 
 	// Birthdate
-	msg = append(msg, 0x04)
+	msg = append(msg, 0x02)
 	msg = append(msg, byte(len(birthdate)))
 	msg = append(msg, []byte(birthdate)...)
 
 	// Number
-	msg = append(msg, 0x05)
+	msg = append(msg, 0x01)
 	numberBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(numberBytes, uint32(number))
 	msg = append(msg, byte(len(numberBytes)))
@@ -75,25 +68,30 @@ func (p *Protocol) CreateBetMessage(
 
 // ParseResponse: Parses the response message and returns the result
 func (p *Protocol) ParseResponse(msg []byte) (string, error) {
-	// Check if the message has at least 3 bytes
-	if len(msg) < 3 {
-		return "", fmt.Errorf("invalid response")
+	// The response will use the TLV format but should only be one field of type character
+	// This is trivial now and could be done without the TLV format, but it's done so it
+	// can easily be extended in the future to handle more information.
+	// TODO: Handle more complex responses in future iterations
+	if len(msg) != 3 {
+		return "", fmt.Errorf("invalid response message")
 	}
 
-	// Check the type of the message
-	switch msg[0] {
-	case 0x06:
-		// Response
-		switch msg[2] {
-		case 0x00:
-			return "OK", nil
-		case 0x01:
-			return "Error", nil
-		default:
-			return "", fmt.Errorf("invalid response value")
-		}
-	default:
+	// Check the type (should be character)
+	if msg[0] != 0x03 {
 		return "", fmt.Errorf("invalid response type")
 	}
 
+	// Check the length (should be 1)
+	if msg[1] != 1 {
+		return "", fmt.Errorf("invalid response length")
+	}
+
+	response := "OK"
+
+	// Check the value (0 for success, 1 for failure)
+	if msg[2] != 0 {
+		response = "FAIL"
+	}
+
+	return response, nil
 }
