@@ -8,12 +8,12 @@ import (
 
 // Connection Entity
 type Connection struct {
-	id   string
+	id   int
 	conn net.Conn
 }
 
 // NewConnection: Initializes a new connection with the given server address and client id
-func NewConnection(serverAddress string, id string) *Connection {
+func NewConnection(serverAddress string, id int) *Connection {
 	conn, err := net.Dial("tcp", serverAddress)
 	if err != nil {
 		log.Criticalf(

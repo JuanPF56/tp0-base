@@ -30,12 +30,17 @@ type Client struct {
 
 // NewClient: Initializes a new client with the given configuration
 func NewClient(config ClientConfig) *Client {
+	id, err := strconv.Atoi(config.ID)
+	if err != nil {
+		log.Errorf("action: id_conversion | result: fail | error: %v", err)
+		return nil
+	}
 	client := &Client{
 		config:     config,
-		protocol:   Protocol{},
+		protocol:   Protocol{id: id},
 		is_running: true,
 	}
-	conn := NewConnection(config.ServerAddress, config.ID)
+	conn := NewConnection(config.ServerAddress, id)
 	client.conn = *conn
 	return client
 }
