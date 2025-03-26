@@ -32,6 +32,52 @@ type Protocol struct {
 		* 0x03: Last batch flag (1 byte)
 */
 
+// CreateBetBatchMessage: Creates a batch message with the given list of bets and EOF flag using TLV (type, length, value) format
+func (p *Protocol) CreateBetBatchMessage(bets []Bet, eof bool) []byte {
+	// Create the message as a byte slice
+	msg := make([]byte, 0)
+	serializedBets := make([]byte, 0)
+	// Start the length at 5 (4 bytes for the agency ID and 1 byte for the last batch flag)
+	length := 5
+	for _, bet := range bets {
+		// Calculate the length of the bet message
+		length += len(bet.Name) + len(bet.Surname) + len(bet.Birthdate) + 8
+		// Create the bet message
+		betMsg := p.CreateBetMessage(bet.Name, bet.Surname, bet.DNI, bet.Birthdate, bet.Number)
+		// Append the bet message
+		serializedBets = append(serializedBets, betMsg...)
+	}
+
+	// Append the TLV fields
+
+	// Type (Batch)
+	msg = append(msg, 0x03)
+	lengthBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(lengthBytes, uint16(length))
+	msg = append(msg, lengthBytes...)
+
+	// Bets (append all the serialized bets)
+	msg = append(msg, serializedBets...)
+
+	// Agency ID (4 bytes)
+	agencyID := make([]byte, 4)
+	binary.BigEndian.PutUint32(agencyID, uint32(p.id))
+	msg = append(msg, 0x02)
+	msg = append(msg, 4)
+	msg = append(msg, agencyID...)
+
+	// Last batch flag (1 byte)
+	flag := byte(0)
+	if eof {
+		flag = 1
+	}
+	msg = append(msg, 0x03)
+	msg = append(msg, 1)
+	msg = append(msg, flag)
+
+	return msg
+}
+
 // CreateBetMessage: Creates a bet message with the given parameters using TLV (type, length, value) format
 func (p *Protocol) CreateBetMessage(
 	name string,

@@ -41,7 +41,7 @@ func NewClient(config ClientConfig) *Client {
 	client := &Client{
 		config:     config,
 		protocol:   Protocol{id: id},
-		betReader:  BetReader{maxAmount: config.BatchMaxAmount, filename: config.BatchFilename},
+		betReader:  *NewBetReader(config.BatchMaxAmount, config.BatchFilename),
 		is_running: true,
 	}
 	conn := NewConnection(config.ServerAddress, id)
@@ -100,7 +100,7 @@ func (c *Client) sendNextBatch(current_batch int) bool {
 		return false
 	}
 	// Send the batch to the server
-	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch))
+	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch, is_last_batch))
 	if err != nil {
 		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
 		return false
