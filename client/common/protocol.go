@@ -19,16 +19,14 @@ type Protocol struct {
 	* Value: n bytes
 
  * Protocol types:
- 	* 0x01: Integer (4 bytes)
- 	* 0x02: String (n bytes)
-	* 0x03: Character (1 byte)
-	* 0x04: Bet (n bytes, composed of the following fields)
-		* 0x01: Agency ID
-		* 0x02: Name
-		* 0x03: Surname
-		* 0x04: DNI
-		* 0x05: Birthdate
-		* 0x06: Number
+	* 0x01: Bet (n bytes, composed of the following fields)
+		* 0x01: Agency ID (uint32, 4 bytes)
+		* 0x02: Name (string, n bytes)
+		* 0x03: Surname (string, n bytes)
+		* 0x04: DNI (uint32, 4 bytes)
+		* 0x05: Birthdate (string, n bytes)
+		* 0x06: Number (uint32, 4 bytes)
+	* 0x02: Response (1 byte)
 */
 
 // CreateBetMessage: Creates a bet message with the given parameters using TLV (type, length, value) format
@@ -45,7 +43,7 @@ func (p *Protocol) CreateBetMessage(
 	// Append the TLV fields
 
 	// Type (Bet)
-	msg = append(msg, 0x04)
+	msg = append(msg, 0x01)
 	msg = append(msg, byte(length))
 
 	// Agency ID
@@ -89,7 +87,7 @@ func (p *Protocol) CreateBetMessage(
 
 // ParseResponse: Parses the response message and returns the result
 func (p *Protocol) ParseResponse(msg []byte) (string, error) {
-	// The response will use the TLV format but should only be one field of type character
+	// The response will use the TLV format but its value will be a single byte long
 	// This is trivial now and could be done without the TLV format, but it's done so it
 	// can easily be extended in the future to handle more information.
 	// TODO: Handle more complex responses in future iterations
@@ -97,8 +95,8 @@ func (p *Protocol) ParseResponse(msg []byte) (string, error) {
 		return "", fmt.Errorf("invalid response message")
 	}
 
-	// Check the type (should be character)
-	if msg[0] != 0x03 {
+	// Check the type (should be response)
+	if msg[0] != 0x02 {
 		return "", fmt.Errorf("invalid response type")
 	}
 

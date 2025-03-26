@@ -15,16 +15,14 @@ each field is indicated by a type byte, a length byte and the value itself.
         * Length: 1 byte
         * Value: n bytes
 
-    * 0x01: Integer (4 bytes)
- 	* 0x02: String (n bytes)
-	* 0x03: Character (1 byte)
-	* 0x04: Bet (n bytes, composed of the following fields)
-		* 0x01: Agency ID
-		* 0x02: Name
-		* 0x03: Surname
-		* 0x04: DNI
-		* 0x05: Birthdate
-		* 0x06: Number
+	* 0x01: Bet (n bytes, composed of the following fields)
+		* 0x01: Agency ID (uint32, 4 bytes)
+		* 0x02: Name (string, n bytes)
+		* 0x03: Surname (string, n bytes)
+		* 0x04: DNI (uint32, 4 bytes)
+		* 0x05: Birthdate (uint32, 4 bytes)
+		* 0x06: Number (uint32, 4 bytes)
+    * 0x02: Response (1 byte)
 """
 class Protocol:
     def __init__(self):
@@ -40,7 +38,7 @@ class Protocol:
         """
 
         # Check that the message is of type Bet
-        if message[0] != 0x04:
+        if message[0] != 0x01:
             raise ValueError("invalid message type, expected Bet")
         # Get message length
         total_length = message[1]
@@ -90,7 +88,7 @@ class Protocol:
         Create a response message to be sent to the client
 
         The response message uses TLV format with a single field of type
-        0x03 (Character) indicating the result of the operation.
+        0x02 indicating the result of the operation.
         
         This is trivial now and could be done without the TLV format,
         but it's done so it can easily be extended in the future to
@@ -98,4 +96,4 @@ class Protocol:
         
 	    TODO: Handle more complex responses in future iterations
         """
-        return bytes([0x03, 0x01, 0x01 if success else 0x00])
+        return bytes([0x02, 0x01, 0x01 if success else 0x00])

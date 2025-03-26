@@ -38,20 +38,18 @@ El protocolo de comunicación se basa en el formato _TLV (Type-Length-Value)_. C
 ---------------------------------------
 El protocolo define los siguientes tipos:
 
-* 0x01: Integer (4 bytes)
-* 0x02: String (n bytes)
-* 0x03: Character (1 byte)
-* 0x04: Bet (n bytes), compuesto a su vez por los siguientes campos:
-    * 0x01: Agency ID (Int)
-    * 0x02: Name (String)
-    * 0x03: Surname (String)
-    * 0x04: DNI (Int)
-    * 0x05: Birthdate (String)
-    * 0x06: Number (Int)
+* 0x01: Bet (n bytes), compuesto a su vez por los siguientes campos:
+    * 0x01: Agency ID (uint32, 4 bytes)
+    * 0x02: Name (string, n bytes)
+    * 0x03: Surname (string, n bytes)
+    * 0x04: DNI (uint32, 4 bytes)
+    * 0x05: Birthdate (string, n bytes)
+    * 0x06: Number (uint32, 4 bytes)
+* 0x02: Response (1 byte)
 ----------------------------------------
 Para la serialización de las apuestas de los clientes se usa el tipo `Bet`, que es un tipo compuesto por los campos mencionados. Los subcampos de la apuesta pueden ser serializados en cualquier orden, ya que el protocolo se encarga de identificarlos. Sin embargo, se requiere que todos los campos estén presentes.
 
-Para las respuestas del servidor se utiliza un tipo `Character`. En caso de éxito, el valor será 1, en caso de error, el valor será 0.
+Para las respuestas del servidor se utiliza un tipo `Response`. En caso de éxito, el valor será 1, en caso de error, el valor será 0.
 
 Los campos de números enteros se serializan en formato big-endian.
 
@@ -70,7 +68,7 @@ Número: 7574
 El mensaje serializado sería (en hexadecimal):
 
 ```
-04 2A (Bet)
+01 2A (Bet)
     01 04 00 00 00 01 (Agency ID: 1)
     02 0F 53 61 6E 74 69 61 67 6F 20 4C 69 6F 6E 65 6C (Name: "Santiago Lionel")
     03 05 4C 6F 72 63 61 (Surname: "Lorca")
@@ -79,7 +77,7 @@ El mensaje serializado sería (en hexadecimal):
     06 04 00 00 1D 96 (Number: 7574)
 ```
 
-Una respuesta exitosa del servidor sería simplemente `03 01 01` (Character: 1). Esto podría haberse manejado por fuera del formato TLV envíando simplemente un byte, pero se optó por mantener la consistencia en el protocolo para que sea fácilmente extensible en el futuro ante respuestas más complejas.
+Una respuesta exitosa del servidor sería simplemente `02 01 01` (Response: 1). Esto podría haberse manejado por fuera del formato TLV envíando simplemente un byte, pero se optó por mantener la consistencia en el protocolo para que sea fácilmente extensible en el futuro ante respuestas más complejas.
 
 #### Conexión
 
