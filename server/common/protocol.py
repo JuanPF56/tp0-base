@@ -12,17 +12,22 @@ each field is indicated by a type byte, a length byte and the value itself.
 
     * TLV (Type, Length, Value) format
         * Type: 1 byte
-        * Length: 1 byte
+        * Length: 1 byte (or 2 bytes for Batch type)
         * Value: n bytes
 
-	* 0x01: Bet (n bytes, composed of the following fields)
-		* 0x01: Agency ID (uint32, 4 bytes)
-		* 0x02: Name (string, n bytes)
-		* 0x03: Surname (string, n bytes)
-		* 0x04: DNI (uint32, 4 bytes)
-		* 0x05: Birthdate (uint32, 4 bytes)
-		* 0x06: Number (uint32, 4 bytes)
-    * 0x02: Response (1 byte)
+    * Protocol types:
+        * 0x01: Bet (n bytes, composed of the following fields)
+            * 0x01: Name (string, n bytes, max 255)
+            * 0x02: Surname (string, n bytes, max 255)
+            * 0x03: DNI (uint32, 4 bytes)
+            * 0x04: Birthdate (string, n bytes, max 255)
+            * 0x05: Number (uint32, 4 bytes)
+        * 0x02: Response (1 byte)
+        * 0x03: Batch (n bytes, max 65535, composed of the following fields)
+            * 0x01: Bet (n bytes as defined above, could be multiple)
+            * 0x02: Agency ID (uint32, 4 bytes)
+            * 0x03: Last batch flag (1 byte)
+            * 0x04: Amount of bets (uint32, 4 bytes)
 """
 class Protocol:
     def __init__(self):
@@ -52,8 +57,6 @@ class Protocol:
             fields[field_type] = field_value
             length += field_length
             start += 2 + field_length
-
-        logging.debug(f"action: receive_message | result: success | fields: {fields}")
 
         if len(fields) != 6 or length != total_length:
             raise ValueError("invalid message format")
