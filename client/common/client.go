@@ -14,10 +14,12 @@ var log = logging.MustGetLogger("log")
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
-	ID            string
-	ServerAddress string
-	LoopAmount    int
-	LoopPeriod    time.Duration
+	ID             string
+	ServerAddress  string
+	LoopAmount     int
+	LoopPeriod     time.Duration
+	BatchMaxAmount int
+	BatchFilename  string
 }
 
 // Client Entity
@@ -25,6 +27,7 @@ type Client struct {
 	config     ClientConfig
 	conn       Connection
 	protocol   Protocol
+	betReader  BetReader
 	is_running bool
 }
 
@@ -38,6 +41,7 @@ func NewClient(config ClientConfig) *Client {
 	client := &Client{
 		config:     config,
 		protocol:   Protocol{id: id},
+		betReader:  BetReader{maxAmount: config.BatchMaxAmount, filename: config.BatchFilename},
 		is_running: true,
 	}
 	conn := NewConnection(config.ServerAddress, id)
@@ -45,25 +49,20 @@ func NewClient(config ClientConfig) *Client {
 	return client
 }
 
-// StartClient: Sends bet message to the server based on env variables and waits for a response
+// StartClient: Sends the bets to the server
 func (c *Client) StartClient() {
-	// Get environment variables (these values will be replaced by reading from a file in the future)
-	name := os.Getenv("NOMBRE")
-	surname := os.Getenv("APELLIDO")
-	dniStr := os.Getenv("DOCUMENTO")
-	dni, err := strconv.Atoi(dniStr)
-	if err != nil {
-		log.Errorf("action: convert_dni | result: fail | error: %v", err)
-		return
-	}
-	birthdate := os.Getenv("NACIMIENTO")
-	numberStr := os.Getenv("NUMERO")
-	number, err := strconv.Atoi(numberStr)
-	if err != nil {
-		log.Errorf("action: convert_number | result: fail | error: %v", err)
-		return
-	}
+	// Set up signal handler to stop the client
+	c.setUpSignalHandler()
 
+	// Send the bet batches
+	c.sendBetBatches()
+
+	// Close the connection
+	c.conn.CloseConnection()
+}
+
+// setUpSignalHandler: Sets up the signal handler to stop the client when a signal is received
+func (c *Client) setUpSignalHandler() {
 	// Signal handling to stop the client
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
@@ -75,44 +74,56 @@ func (c *Client) StartClient() {
 		log.Infof("SIGTERM received, stopping client %v", c.config.ID)
 		c.conn.CloseConnection()
 	}()
+}
 
-	_, err = c.conn.SendMessage(c.protocol.CreateBetMessage(name, surname, dni, birthdate, number))
-	if err != nil {
-		log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return
+// sendBetBatches: Sends the bet batches to the server
+func (c *Client) sendBetBatches() {
+	cont := true
+	current_batch := 0
+	for c.is_running && cont {
+		cont = c.sendNextBatch(current_batch)
+		if c.is_running && cont {
+			cont = c.handleBatchResponse(current_batch)
+		}
+		current_batch++
 	}
+}
 
+// sendNextBatch: Sends the next batch of bets to the server
+func (c *Client) sendNextBatch(current_batch int) bool {
+	// Get the next batch of bets
+	batch, is_last_batch, err := c.betReader.GetNextBatch()
+	if err != nil {
+		log.Errorf("action: obtener_apuestas | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return false
+	}
+	// Send the batch to the server
+	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch))
+	if err != nil {
+		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
+		return false
+	}
+	return !is_last_batch
+}
+
+// handleBatchResponse: Handles the response from the server after sending a batch of bets
+func (c *Client) handleBatchResponse(current_batch int) bool {
+	// Wait for the response
 	response, err := c.conn.ReceiveMessage()
 	if err != nil {
-		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return
+		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
+		return false
 	}
-	parsedResponse, err := c.protocol.ParseResponse(response)
+
+	// Parse the response
+	result, err := c.protocol.ParseResponse(response)
 	if err != nil {
-		log.Errorf("action: parse_response | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return
+		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
+		return false
 	}
 
-	if parsedResponse == "OK" {
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-			dni,
-			number,
-		)
-	} else {
-		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v",
-			dni,
-			number,
-		)
-	}
+	// Log the result
+	log.Infof("action: apuestas_enviadas | result: %v | client_id: %v | batch_number: %v", result, c.config.ID, current_batch)
 
-	c.conn.CloseConnection()
+	return result == "success"
 }

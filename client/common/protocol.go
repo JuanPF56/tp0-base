@@ -105,11 +105,11 @@ func (p *Protocol) ParseResponse(msg []byte) (string, error) {
 		return "", fmt.Errorf("invalid response length")
 	}
 
-	response := "OK"
+	response := "success"
 
 	// Check the value (0 for failure, 1 for success)
 	if msg[2] != 1 {
-		response = "FAIL"
+		response = "fail"
 	}
 
 	return response, nil
