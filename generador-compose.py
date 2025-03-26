@@ -30,11 +30,8 @@ def generate_compose(filename, n):
             "networks": ["testing_net"],
             "depends_on": ["server"],
             "volumes": [
-                "./client/config.yaml:/config.yaml"
-            ],
-            "env_file":
-            [
-                f"./client/.env{i}"
+                "./client/config.yaml:/config.yaml",
+                f"./.data/dataset/agency-{i}.csv:/dataset.csv"
             ]
         }
 
