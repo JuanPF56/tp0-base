@@ -49,7 +49,7 @@ func NewClient(config ClientConfig) *Client {
 	return client
 }
 
-// StartClient: Sends the bets to the server
+// StartClient: Starts the client logic
 func (c *Client) StartClient() {
 	// Set up signal handler to stop the client
 	c.setUpSignalHandler()
@@ -57,8 +57,9 @@ func (c *Client) StartClient() {
 	// Send the bet batches
 	c.sendBetBatches()
 
-	// Close the connection
+	// Close the connection and the file
 	c.conn.CloseConnection()
+	c.betReader.CloseFile()
 }
 
 // setUpSignalHandler: Sets up the signal handler to stop the client when a signal is received
@@ -73,6 +74,7 @@ func (c *Client) setUpSignalHandler() {
 		c.is_running = false
 		log.Infof("SIGTERM received, stopping client %v", c.config.ID)
 		c.conn.CloseConnection()
+		c.betReader.CloseFile()
 	}()
 }
 

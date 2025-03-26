@@ -103,10 +103,23 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
-	// Batch amount will be set as 0 by default if not provided
-	// This will be interpreted as reading as many lines that would fit in
-	// a 8KB message.
-	v.SetDefault("batch.maxAmount", 0)
+	// By default, the batch.maxAmount is set to 20 to avoid messages exceeding 8KB.
+	//
+	// Assuming worst case scenario, each serialized bet will be at least 255 bytes long
+	// (max allowed by the protocol, as the length of a bet is specified as a byte).
+	//
+	// This means that the name, surname and birthdate fields will have to be less than
+	// 255 - 8 = 247 bytes long combined (as 8 bytes are used by the other fields).
+	// This gives them around 82 bytes each, which should be more than enough.
+	//
+	// Taking into account the type and length bytes for each field (5 * 2 = 10 bytes),
+	// and the initial 3 bytes for the type and length of the bet, we have 13 bytes +
+	// 255 bytes = 268 bytes per bet.
+	//
+	// This means that by default, the amount of data sent in a batch will be at most
+	// 20 * 268 = 5360 bytes. This is well below the 8KB limit, so it should be safe.
+	//
+	v.SetDefault("batch.maxAmount", 20)
 
 	clientConfig := common.ClientConfig{
 		ServerAddress:  v.GetString("server.address"),
