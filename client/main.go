@@ -103,6 +103,11 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
+	// Batch amount will be set as 0 by default if not provided
+	// This will be interpreted as reading as many lines that would fit in
+	// a 8KB message.
+	v.SetDefault("batch.maxAmount", 0)
+
 	clientConfig := common.ClientConfig{
 		ServerAddress:  v.GetString("server.address"),
 		ID:             v.GetString("id"),
