@@ -49,28 +49,28 @@ class Server:
         client socket will also be closed
         """
         try:
-            bet = self.protocol.parseBetMessage(client_connection.recvMsg())
-            success = self._store_bet(bet)
+            bets, last_batch = self.protocol.parseBatchMessage(client_connection.recvMsg())
+            success = self._store_bet(bets)
             client_connection.sendMsg(self.protocol.createResponse(success))
         except OSError as e:
-            logging.error(f"action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: apuesta_recibida | result: fail | error: {e}")
         except ValueError as e:
-            logging.error(f"action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: apuesta_recibida | result: fail | error: {e}")
             client_connection.sendMsg(self.protocol.createResponse(False))
         finally:
             client_connection.close()
 
 
-    def _store_bet(self, bet):
+    def _store_bet(self, bets):
         """
-        Store the bet in the storage file
+        Store the bets in the storage file
 
-        Function stores the bet in the storage file and returns a boolean
+        Function stores the bets in the storage file and returns a boolean
         indicating if the operation was successful
         """
         try:
-            store_bets([bet])
-            logging.info(f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
+            store_bets(bets)
+            logging.info(f"action: apuesta_almacenada | result: success | cantidad: {len(bets)}")
             return True
         except OSError as e:
             logging.error(f"action: apuesta_almacenada | result: fail | error: {e}")

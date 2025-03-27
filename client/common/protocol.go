@@ -19,18 +19,18 @@ type Protocol struct {
 	* Value: n bytes
 
  * Protocol types:
-	* 0x01: Bet (n bytes, composed of the following fields)
+	* 0x01: Batch (n bytes, max 65535, composed of the following fields)
+		* 0x01: Amount of bets (uint32, 4 bytes)
+		* 0x02: Bet (n bytes as defined above, could be multiple)
+		* 0x03: Agency ID (uint32, 4 bytes)
+		* 0x04: Last batch flag (1 byte)
+	* 0x02: Bet (n bytes, composed of the following fields)
 		* 0x01: Name (string, n bytes, max 255)
 		* 0x02: Surname (string, n bytes, max 255)
 		* 0x03: DNI (uint32, 4 bytes)
 		* 0x04: Birthdate (string, n bytes, max 255)
 		* 0x05: Number (uint32, 4 bytes)
-	* 0x02: Response (1 byte)
-	* 0x03: Batch (n bytes, max 65535, composed of the following fields)
-		* 0x01: Bet (n bytes as defined above, could be multiple)
-		* 0x02: Agency ID (uint32, 4 bytes)
-		* 0x03: Last batch flag (1 byte)
-		* 0x04: Amount of bets (uint32, 4 bytes)
+	* 0x03: Response (1 byte)
 */
 
 // CreateBetBatchMessage: Creates a batch message with the given list of bets and EOF flag using TLV (type, length, value) format
@@ -53,7 +53,7 @@ func (p *Protocol) CreateBetBatchMessage(bets []Bet, eof bool) []byte {
 	// Append the TLV fields
 
 	// Type (Batch)
-	msg = append(msg, 0x03)
+	msg = append(msg, 0x01)
 	lengthBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(lengthBytes, uint16(length))
 	msg = append(msg, lengthBytes...)
@@ -61,8 +61,8 @@ func (p *Protocol) CreateBetBatchMessage(bets []Bet, eof bool) []byte {
 	// Amount of bets (4 bytes), we put it first so it's the first field to be read
 	amount := make([]byte, 4)
 	binary.BigEndian.PutUint32(amount, uint32(len(bets)))
-	msg = append(msg, 0x04)
-	msg = append(msg, 4)
+	msg = append(msg, 0x01)
+	msg = append(msg, byte(len(amount)))
 	msg = append(msg, amount...)
 
 	// Bets (append all the serialized bets)
@@ -71,8 +71,8 @@ func (p *Protocol) CreateBetBatchMessage(bets []Bet, eof bool) []byte {
 	// Agency ID (4 bytes)
 	agencyID := make([]byte, 4)
 	binary.BigEndian.PutUint32(agencyID, uint32(p.id))
-	msg = append(msg, 0x02)
-	msg = append(msg, 4)
+	msg = append(msg, 0x03)
+	msg = append(msg, byte(len(agencyID)))
 	msg = append(msg, agencyID...)
 
 	// Last batch flag (1 byte)
@@ -80,7 +80,7 @@ func (p *Protocol) CreateBetBatchMessage(bets []Bet, eof bool) []byte {
 	if eof {
 		flag = 1
 	}
-	msg = append(msg, 0x03)
+	msg = append(msg, 0x04)
 	msg = append(msg, 1)
 	msg = append(msg, flag)
 
@@ -101,7 +101,7 @@ func (p *Protocol) CreateBetMessage(
 	// Append the TLV fields
 
 	// Type (Bet)
-	msg = append(msg, 0x01)
+	msg = append(msg, 0x02)
 	msg = append(msg, byte(length))
 
 	// Name
@@ -146,7 +146,7 @@ func (p *Protocol) ParseResponse(msg []byte) (string, error) {
 	}
 
 	// Check the type (should be response)
-	if msg[0] != 0x02 {
+	if msg[0] != 0x03 {
 		return "", fmt.Errorf("invalid response type")
 	}
 
