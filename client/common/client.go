@@ -59,12 +59,12 @@ func (c *Client) StartClient() {
 	_, err := c.conn.SendMessage(c.protocol.CreateAgencyIDMessage())
 
 	// Send the bet batches if there was no error
-	if err != nil {
+	if err == nil {
 		err = c.sendBetBatches()
 	}
 
 	// Check winners if there was no error
-	if err != nil {
+	if err == nil {
 		c.checkWinners()
 	}
 

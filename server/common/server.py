@@ -56,6 +56,7 @@ class Server:
                 new_client = Client(client_connection)
                 agency_id = new_client.getAgencyID()
                 self.clients[agency_id] = new_client
+                logging.debug(f"action: accept_connections | result: success | agency_id: {agency_id}")
                 self.__handle_client_connection(agency_id)
 
                 # Check if all the clients being awaited are done
@@ -73,6 +74,7 @@ class Server:
         """
         last_batch = False
         client= self.clients[agency_id]
+        logging.debug(f"action: apuesta_recibida | result: in_progress | client: {client.getAgencyID()}")
         try:
             while not last_batch:
                 # Parse the message and store the bets
