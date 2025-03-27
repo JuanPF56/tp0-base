@@ -94,16 +94,13 @@ func (b *BetReader) readBet() (Bet, error) {
 
 // peekBet: Peeks if there are more bets to read
 func (b *BetReader) peekEOF() bool {
-	pos, err := b.file.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return true
-	}
-	_, err = b.reader.Read()
+	pos, _ := b.file.Seek(0, io.SeekCurrent)
+	_, err := b.reader.Read()
 	if err == io.EOF {
 		return true
 	}
-	_, err = b.file.Seek(pos, io.SeekStart)
-	return err != nil
+	b.file.Seek(pos, io.SeekStart)
+	return false
 }
 
 // CloseFile: Closes the file if it is not already closed
