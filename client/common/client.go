@@ -144,9 +144,6 @@ func (c *Client) sendNextBatch(current_batch int) (bool, error) {
 		log.Errorf("action: obtener_apuestas | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return false, err
 	}
-	if len(batch) == 0 {
-		return true, io.EOF
-	}
 	// Send the batch to the server
 	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch, is_last_batch))
 	if err != nil {

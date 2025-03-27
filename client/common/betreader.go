@@ -12,6 +12,7 @@ type BetReader struct {
 	maxAmount int
 	file      *os.File
 	reader    *csv.Reader
+	next_line []string
 }
 
 // NewBetReader: Initializes a new bet reader with the given maximum amount and filename
@@ -60,8 +61,16 @@ func (b *BetReader) readBet() (Bet, error) {
 	// Read next csv line
 	var name, surname, birthdate string
 	var dni, number int
+	var record []string
+	var err error
 
-	record, err := b.reader.Read()
+	// If there is a line in advance, use it
+	if b.next_line == nil {
+		record, err = b.reader.Read()
+	} else {
+		record = b.next_line
+		b.next_line = nil
+	}
 	if err != nil {
 		return Bet{}, err
 	}
@@ -79,6 +88,9 @@ func (b *BetReader) readBet() (Bet, error) {
 		return Bet{}, err
 	}
 
+	// Read the next line in advance to check if there are more bets
+	b.next_line, err = b.reader.Read()
+
 	// Return the bet
 	return Bet{
 		Name:      name,
@@ -86,7 +98,7 @@ func (b *BetReader) readBet() (Bet, error) {
 		DNI:       dni,
 		Birthdate: birthdate,
 		Number:    number,
-	}, nil
+	}, err
 }
 
 // CloseFile: Closes the file if it is not already closed
