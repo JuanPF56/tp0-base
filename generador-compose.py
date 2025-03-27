@@ -31,7 +31,7 @@ def generate_compose(filename, n):
             "depends_on": ["server"],
             "volumes": [
                 "./client/config.yaml:/config.yaml",
-                f"./.data/dataset/agency-{i}.csv:/dataset.csv"
+                f"./.data/agency-{i}.csv:/dataset.csv"
             ]
         }
 

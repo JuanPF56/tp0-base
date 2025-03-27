@@ -18,7 +18,7 @@ services:
     - testing_net
     volumes:
     - ./client/config.yaml:/config.yaml
-    - ./.data/dataset/agency-1.csv:/dataset.csv
+    - ./.data/agency-1.csv:/dataset.csv
   client2:
     container_name: client2
     depends_on:
@@ -31,7 +31,7 @@ services:
     - testing_net
     volumes:
     - ./client/config.yaml:/config.yaml
-    - ./.data/dataset/agency-2.csv:/dataset.csv
+    - ./.data/agency-2.csv:/dataset.csv
   client3:
     container_name: client3
     depends_on:
@@ -44,7 +44,7 @@ services:
     - testing_net
     volumes:
     - ./client/config.yaml:/config.yaml
-    - ./.data/dataset/agency-3.csv:/dataset.csv
+    - ./.data/agency-3.csv:/dataset.csv
   client4:
     container_name: client4
     depends_on:
@@ -57,7 +57,7 @@ services:
     - testing_net
     volumes:
     - ./client/config.yaml:/config.yaml
-    - ./.data/dataset/agency-4.csv:/dataset.csv
+    - ./.data/agency-4.csv:/dataset.csv
   client5:
     container_name: client5
     depends_on:
@@ -70,7 +70,7 @@ services:
     - testing_net
     volumes:
     - ./client/config.yaml:/config.yaml
-    - ./.data/dataset/agency-5.csv:/dataset.csv
+    - ./.data/agency-5.csv:/dataset.csv
   server:
     container_name: server
     entrypoint: python3 /main.py
