@@ -11,7 +11,8 @@ def generate_compose(filename, n):
         "image": "server:latest",
         "entrypoint": "python3 /main.py",
         "environment": [
-            "PYTHONUNBUFFERED=1"
+            "PYTHONUNBUFFERED=1",
+            "CLIENTS=" + str(n)
         ],
         "networks": ["testing_net"],
         "volumes": [

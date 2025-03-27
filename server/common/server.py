@@ -6,10 +6,18 @@ from common.protocol import Protocol
 from common.utils import store_bets
 
 class Server:
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, clients):
+        """
+        Server class
+        
+        Server class that accepts connections from clients and
+        handles the communication with them
+        """
         self.acceptor = Acceptor(port, listen_backlog)
         self.protocol = Protocol()
+        self.clients_to_await = clients
         self.is_running = True
+
 
         # Register signal handler for SIGTERM signal
         signal.signal(signal.SIGTERM, self.__handle_sigterm)
