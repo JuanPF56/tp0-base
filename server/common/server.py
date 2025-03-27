@@ -70,8 +70,8 @@ class Server:
         """
         try:
             store_bets(bets)
-            logging.info(f"action: apuesta_almacenada | result: success | cantidad: {len(bets)}")
+            logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
             return True
         except OSError as e:
-            logging.error(f"action: apuesta_almacenada | result: fail | error: {e}")
+            logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(bets)}")
             return False
