@@ -4,7 +4,6 @@ import multiprocessing
 
 from common.acceptor import Acceptor
 from common.client import Client
-from common.utils import has_won, load_bets, store_bets
 from common.bethandler import BetHandler
 
 class Server:
@@ -20,7 +19,10 @@ class Server:
         self.clients_to_await = clients
         self.is_running = True
 
-        self.clients= {}
+        self.manager = multiprocessing.Manager()
+
+        self.clients = {}
+        self.clients_queues = self.manager.dict()
 
         # Register signal handler for SIGTERM signal
         signal.signal(signal.SIGTERM, self.__handleSigterm)
@@ -47,7 +49,8 @@ class Server:
         """
 
         # Start the bet handler process
-        self.bet_handler = BetHandler(self.clients_to_await)
+        bet_handler_queue = self.manager.Queue()
+        self.bet_handler = BetHandler(self.clients_to_await, bet_handler_queue, self.clients_queues)
         self.bet_handler.start()
 
         # This loop will run until the server is stopped,
@@ -57,9 +60,11 @@ class Server:
                 # Accept new connections
                 client_connection = self.acceptor.accept()
                 if client_connection is not None:
-                    new_client = Client(client_connection, self.bet_handler.getQueue())
+                    new_client_queue = self.manager.Queue()
+                    new_client = Client(client_connection, bet_handler_queue, new_client_queue)
                     agency_id = new_client.getAgencyID()
                     self.clients[agency_id] = new_client
+                    self.clients_queues[agency_id] = new_client_queue
                     logging.debug(f"action: aceptar_conexion | result: success | agency_id: {agency_id}")
                     new_client.start()
             except OSError as e:
@@ -67,7 +72,6 @@ class Server:
                 logging.error(f"action: aceptar_conexion | result: fail | error: {e}")
                 self.__stopServer()
                 break
-            
         
     def __stopServer(self):
         """
@@ -89,3 +93,4 @@ class Server:
             client.join()
         logging.info("Stopping bet handler")
         self.bet_handler.join()
+        self.manager.shutdown()

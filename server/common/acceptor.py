@@ -18,14 +18,14 @@ class Acceptor:
         """
 
         # Connection arrived
-        logging.info('action: accept_connections | result: in_progress')
+        logging.info('action: aceptar_conexion | result: in_progress')
         try:
             c, addr = self._server_socket.accept()
         except OSError as e:
             # If server socket was closed, return None
             return None
 
-        logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
+        logging.info(f'action: aceptar_conexion | result: success | ip: {addr[0]}')
         return Connection(c)
     
     def close(self):

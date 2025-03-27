@@ -3,7 +3,7 @@ from common.protocol import Protocol
 import multiprocessing
 
 class Client(multiprocessing.Process):
-    def __init__(self, connection, queue):
+    def __init__(self, connection, bet_handler_queue, queue):
         """
         Client class
 
@@ -13,14 +13,10 @@ class Client(multiprocessing.Process):
         self.connection = connection
         self.protocol = Protocol()
         self.is_done = False
-        self.agency_id = self._receiveAgencyID()
-        self.bet_handler_queue = queue
-        self.queue = multiprocessing.Queue()
+        self.agency_id = self.__receiveAgencyID()
+        self.bet_handler_queue = bet_handler_queue
+        self.queue = queue
         self.joined = False
-
-        # Send agency ID and queue to the bet handler
-        self.bet_handler_queue.put(("NEW_CLIENT", self.agency_id, self.queue))
-        logging.info(f"action: nuevo_cliente | result: success | agency_id: {self.agency_id}")
 
     def run(self):
         """
@@ -102,12 +98,7 @@ class Client(multiprocessing.Process):
         self.is_done = True
         # Send termination signal to the bet handler
         # to indicate that the client is done
-        if self.queue:
-            self.bet_handler_queue.put(("CLIENT_DISCONNECT", self.agency_id))
-            # Close the queue
-            self.queue.close()
-            self.queue.join_thread()
-            self.queue = None
+        self.bet_handler_queue.put(("CLIENT_DISCONNECT", self.agency_id))
 
     def join(self):
         """
