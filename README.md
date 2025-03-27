@@ -4,58 +4,53 @@
 
 Las secciones de repaso del trabajo práctico plantean un caso de uso denominado **Lotería Nacional**. Para la resolución de las mismas deberá utilizarse como base el código fuente provisto en la primera parte, con las modificaciones agregadas en el ejercicio 4.
 
-### Ejercicio N°5:
-Modificar la lógica de negocio tanto de los clientes como del servidor para nuestro nuevo caso de uso.
+### Ejercicio N°6:
+Modificar los clientes para que envíen varias apuestas a la vez (modalidad conocida como procesamiento por _chunks_ o _batchs_). 
+Los _batchs_ permiten que el cliente registre varias apuestas en una misma consulta, acortando tiempos de transmisión y procesamiento.
 
-#### Cliente
-Emulará a una _agencia de quiniela_ que participa del proyecto. Existen 5 agencias. Deberán recibir como variables de entorno los campos que representan la apuesta de una persona: nombre, apellido, DNI, nacimiento, numero apostado (en adelante 'número'). Ej.: `NOMBRE=Santiago Lionel`, `APELLIDO=Lorca`, `DOCUMENTO=30904465`, `NACIMIENTO=1999-03-17` y `NUMERO=7574` respectivamente.
+La información de cada agencia será simulada por la ingesta de su archivo numerado correspondiente, provisto por la cátedra dentro de `.data/datasets.zip`.
+Los archivos deberán ser inyectados en los containers correspondientes y persistido por fuera de la imagen (hint: `docker volumes`), manteniendo la convencion de que el cliente N utilizara el archivo de apuestas `.data/agency-{N}.csv` .
 
-Los campos deben enviarse al servidor para dejar registro de la apuesta. Al recibir la confirmación del servidor se debe imprimir por log: `action: apuesta_enviada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+En el servidor, si todas las apuestas del *batch* fueron procesadas correctamente, imprimir por log: `action: apuesta_recibida | result: success | cantidad: ${CANTIDAD_DE_APUESTAS}`. En caso de detectar un error con alguna de las apuestas, debe responder con un código de error a elección e imprimir: `action: apuesta_recibida | result: fail | cantidad: ${CANTIDAD_DE_APUESTAS}`.
 
-#### Servidor
-Emulará a la _central de Lotería Nacional_. Deberá recibir los campos de la cada apuesta desde los clientes y almacenar la información mediante la función `store_bet(...)` para control futuro de ganadores. La función `store_bet(...)` es provista por la cátedra y no podrá ser modificada por el alumno.
-Al persistir se debe imprimir por log: `action: apuesta_almacenada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+La cantidad máxima de apuestas dentro de cada _batch_ debe ser configurable desde config.yaml. Respetar la clave `batch: maxAmount`, pero modificar el valor por defecto de modo tal que los paquetes no excedan los 8kB. 
 
-#### Comunicación:
-Se deberá implementar un módulo de comunicación entre el cliente y el servidor donde se maneje el envío y la recepción de los paquetes, el cual se espera que contemple:
-* Definición de un protocolo para el envío de los mensajes.
-* Serialización de los datos.
-* Correcta separación de responsabilidades entre modelo de dominio y capa de comunicación.
-* Correcto empleo de sockets, incluyendo manejo de errores y evitando los fenómenos conocidos como [_short read y short write_](https://cs61.seas.harvard.edu/site/2018/FileDescriptors/).
+Por su parte, el servidor deberá responder con éxito solamente si todas las apuestas del _batch_ fueron procesadas correctamente.
 
 ### Resolución
 
-La resolución de este ejercicio conllevó un gran refactor del código original. Tanto en cliente como en servidor se separararon las responsabilidades en distintas entidades: se mantuvieron `Client` y `Server` para la lógica principal, se agregaron entidades `Connection` para encapsular el manejo de sockets (delegando la responsabilidad de verificar que no ocurran short reads o short writes) y `Protocol` para manejar la serialización y deserialización de los mensajes. El servidor además cuenta con una entidad `Acceptor` que se encarga de aceptar conexiones entrantes.
-
-Estas entidades podrán ser utilizadas y expandidas en los próximos ejercicios en la implementación de más funcionalidades y eventualmente en la concurrencia.
-
-Además, para poder probar la correcta funcionalidad de la comunicación, se agregaron archivos `.env` para cada cliente con los datos de la apuesta a enviar al servidor. Los datos son entonces definidos como variables de entorno en la ejecución de los containers. Esto es sólo de ejemplo para este ejercicio, las apuestas futuras serán leídas de archivos.
+Para la resolución de este ejercicio se modificó el protocolo de comunicación entre el cliente y el servidor para permitir el envío de apuestas en _batch_. Se agregó además una nueva entidad `BetReader` en los clientes que permite leer los archivos de apuestas y construir los _batches_. Los archivos son montados en los containers de los clientes y se leen en el momento de la ejecución.
 
 #### Protocolo
 
-El protocolo de comunicación se basa en el formato _TLV (Type-Length-Value)_. Cada mensaje enviado esta compuesto por una serie de campos, cada uno con un tipo, un largo y un valor. El tipo y el largo tienen un tamaño fijo de 1 byte, mientras que el valor puede tener un largo variable (expresado en el campo de largo). Como se puede observar, el largo máximo de un campo es de 255 bytes, lo cual puede llegar a ser insuficiente en algunos mensajes. Probablemente esto sea modificado en futuros ejercicios, pero se considera suficiente para el alcance del presente.
+Se implementó un nuevo tipo de mensaje, `Batch`, que permite enviar varias apuestas en un solo mensaje. Se realizaron cambios en la estructura del tipo `Bet`, quitando el ID de la agencia del mismo para no repetir información. Los mensajes de tipo `Batch` contienen un campo con el ID de la agencia, un campo con la cantidad de apuestas, uno o más campos con las apuestas en sí y un campo con un flag que indica si es el último _batch_ a enviar.
 
 ---------------------------------------
-El protocolo define los siguientes tipos:
+Los tipos del protocolo quedaron de la siguiente manera:
 
-* 0x01: Bet (n bytes), compuesto a su vez por los siguientes campos:
-    * 0x01: Agency ID (uint32, 4 bytes)
-    * 0x02: Name (string, n bytes)
-    * 0x03: Surname (string, n bytes)
-    * 0x04: DNI (uint32, 4 bytes)
-    * 0x05: Birthdate (string, n bytes)
-    * 0x06: Number (uint32, 4 bytes)
-* 0x02: Response (1 byte)
-----------------------------------------
-Para la serialización de las apuestas de los clientes se usa el tipo `Bet`, que es un tipo compuesto por los campos mencionados. Los subcampos de la apuesta pueden ser serializados en cualquier orden, ya que el protocolo se encarga de identificarlos. Sin embargo, se requiere que todos los campos estén presentes.
+* 0x01: Batch (n bytes, max 65535, compuesto de los siguientes campos)
+    * 0x01: Amount of bets (uint32, 4 bytes)
+    * 0x02: Bet (n bytes, definido más abajo, pueden ser varios)
+    * 0x03: Agency ID (uint32, 4 bytes)
+    * 0x04: Last batch flag (1 byte)
+* 0x02: Bet (n bytes, compuesto de los siguientes campos)
+    * 0x01: Name (string, n bytes, max 255)
+    * 0x02: Surname (string, n bytes, max 255)
+    * 0x03: DNI (uint32, 4 bytes)
+    * 0x04: Birthdate (string, n bytes, max 255)
+    * 0x05: Number (uint32, 4 bytes)
+* 0x03: Response (1 byte)
+-----------------------------------------
+Se decidió otorgar 2 bytes al campo _length_ de los mensajes de tipo `Batch` para permitir el envío de _batches_ más grandes (hasta 65535 bytes). Se decidió (por practicidad para estos ejercicios) mantener el campo _length_ de los mensajes de tipo `Bet` en 1 byte. Esto quiere decir que una apuesta puede contener 255 bytes de información, lo cual se asume suficiente para los datos manejados, y se establece como una limitación del protocolo. La misma puede ser sencillamente modificada en el futuro si se requiere.
 
-Para las respuestas del servidor se utiliza un tipo `Response`. En caso de éxito, el valor será 1, en caso de error, el valor será 0.
+Por esta razón, la cantidad máxima por defecto de cada _batch_ se estableció en 20 apuestas. Esto permite que los mensajes no excedan los 8KB como es pedido en el enunciado.
+Si asumimos que cada apuesta tiene un tamaño de 268 bytes (13 bytes de overhead + 255 bytes de datos), entonces un _batch_ de 20 apuestas tendrá un tamaño de 5360 bytes, a lo cuál se le suman 15 bytes por el resto de los campos de la estructura del tipo `Batch`, quedando un total de 5375 bytes, que es inferior a los 8KB permitidos y da un margen de seguridad para otros campos que puedan agregarse en el futuro.
 
-Los campos de números enteros se serializan en formato big-endian.
+**Importante:** Por simplicidad de este ejercicio y de los próximos, el protocolo asumirá que los campos llegarán en el orden establecido en la descripción de los tipos. Esto es, por ejemplo, que el campo `Amount of bets` siempre será el primer campo de un mensaje de tipo `Batch`.
 
 ##### Ejemplo de mensaje
 
-Supongamos que el cliente (agencia) 1 envía la siguiente apuesta:
+Tomemos como ejemplo un mensaje `Batch` que sea de la agencia 1 y contenga 1 sola apuesta, la cual a su vez es la última apuesta a enviar. Mantengamos como ejemplo la misma apuesta del ejercicio anterior:
 
 ```
 Nombre: "Santiago Lionel"
@@ -68,20 +63,21 @@ Número: 7574
 El mensaje serializado sería (en hexadecimal):
 
 ```
-01 2A (Bet)
-    01 04 00 00 00 01 (Agency ID: 1)
-    02 0F 53 61 6E 74 69 61 67 6F 20 4C 69 6F 6E 65 6C (Name: "Santiago Lionel")
-    03 05 4C 6F 72 63 61 (Surname: "Lorca")
-    04 04 01 D7 90 91 (DNI: 30904465)
-    05 0A 31 39 39 39 2D 30 33 2D 31 37 (Birthdate: "1999-03-17")
-    06 04 00 00 1D 96 (Number: 7574)
+01 00 33 (Batch)
+    01 04 00 00 00 01 (Amount of bets: 1)
+    02 2A (Bet)
+        02 0F 53 61 6E 74 69 61 67 6F 20 4C 69 6F 6E 65 6C (Name: "Santiago Lionel")
+        03 05 4C 6F 72 63 61 (Surname: "Lorca")
+        04 04 01 D7 90 91 (DNI: 30904465)
+        05 0A 31 39 39 39 2D 30 33 2D 31 37 (Birthdate: "1999-03-17")
+        06 04 00 00 1D 96 (Number: 7574)
+    ... (aquí irían más apuestas si las hubiera)
+    03 04 00 00 00 01 (Agency ID: 1)
+    04 01 01 (Last batch flag: 1)
+    
 ```
 
-Una respuesta exitosa del servidor sería simplemente `02 01 01` (Response: 1). Esto podría haberse manejado por fuera del formato TLV envíando simplemente un byte, pero se optó por mantener la consistencia en el protocolo para que sea fácilmente extensible en el futuro ante respuestas más complejas.
-
-#### Conexión
-
-Las entidades `Connection` (como se mencionó anteriormente) se encargan de manejar los sockets y evitar los problemas de short reads y short writes. Para ello, se envía siempre primero el largo del mensaje y luego el mensaje en sí. Esto permite que el receptor sepa cuántos bytes debe leer para recibir el mensaje completo, evitando que se quede esperando por más bytes o que lea de más. Esto se hace de manera independiente de la serialización de los mensajes, para que el protocolo pueda ser modificado sin afectar la comunicación y no se mezclen las responsabilidades.
+El servidor seguirá enviando respuestas de tipo `Response` como en el ejercicio anterior ante cada procesamiento de un _batch_ de apuestas (sólo que ahora le corresponde el tipo 0x03). Se decidió dejar este campo como está para representar respuestas booleanas del servidor. En el próximo ejercicio se implementará otro tipo de respuesta para notificar ganadores.
 
 -----------------
 -----------------

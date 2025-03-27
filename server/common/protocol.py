@@ -18,7 +18,7 @@ each field is indicated by a type byte, a length byte and the value itself.
     * Protocol types:
         * 0x01: Batch (n bytes, max 65535, composed of the following fields)
             * 0x01: Amount of bets (uint32, 4 bytes)
-            * 0x02: Bet (n bytes as defined above, could be multiple)
+            * 0x02: Bet (n bytes as defined below, could be multiple)
             * 0x03: Agency ID (uint32, 4 bytes)
             * 0x04: Last batch flag (1 byte)
         * 0x02: Bet (n bytes, composed of the following fields)

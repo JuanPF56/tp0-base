@@ -117,7 +117,7 @@ func main() {
 	// 255 bytes = 268 bytes per bet.
 	//
 	// This means that by default, the amount of data sent in a batch will be at most
-	// 20 * 268 + 15 (for the agency ID, last batch flag and amount of bets fields) = 5389 bytes,
+	// 20 * 268 + 15 (for the agency ID, last batch flag and amount of bets fields) = 5375 bytes,
 	// which is well below the 8KB limit.
 	//
 	v.SetDefault("batch.maxAmount", 20)
