@@ -74,7 +74,6 @@ class Server:
         """
         last_batch = False
         client= self.clients[agency_id]
-        logging.debug(f"action: apuesta_recibida | result: in_progress | client: {client.getAgencyID()}")
         try:
             while not last_batch:
                 # Parse the message and store the bets
