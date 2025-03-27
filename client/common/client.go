@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -54,11 +55,18 @@ func (c *Client) StartClient() {
 	// Set up signal handler to stop the client
 	c.setUpSignalHandler()
 
-	// Send the bet batches
-	c.sendBetBatches()
+	// Send the agency ID
+	_, err := c.conn.SendMessage(c.protocol.CreateAgencyIDMessage())
 
-	// Check winners
-	c.checkWinners()
+	// Send the bet batches if there was no error
+	if err != nil {
+		err = c.sendBetBatches()
+	}
+
+	// Check winners if there was no error
+	if err != nil {
+		c.checkWinners()
+	}
 
 	// Close the connection and the file
 	c.conn.CloseConnection()
@@ -84,7 +92,7 @@ func (c *Client) setUpSignalHandler() {
 // checkWinners: Await server response for winners
 
 // sendBetBatches: Sends the bet batches to the server
-func (c *Client) sendBetBatches() {
+func (c *Client) sendBetBatches() error {
 	last_batch := false
 	current_batch := 0
 	// Loop until the client is stopped, there are no more batches or an error occurs
@@ -93,16 +101,17 @@ func (c *Client) sendBetBatches() {
 		last_batch, err = c.sendNextBatch(current_batch)
 		// If there was an error sending the batch, stop sending batches
 		if err != nil {
-			break
+			return err
 		}
 		if c.is_running {
 			// If the response was unsuccessful, stop sending batches
 			if !c.handleBatchResponse(current_batch) {
-				break
+				return fmt.Errorf("batch %v was unsuccessful", current_batch)
 			}
 		}
 		current_batch++
 	}
+	return nil
 }
 
 // sendNextBatch: Sends the next batch of bets to the server

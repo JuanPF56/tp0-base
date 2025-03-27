@@ -31,6 +31,7 @@ type Protocol struct {
 		* 0x04: Birthdate (string, n bytes, max 255)
 		* 0x05: Number (uint32, 4 bytes)
 	* 0x03: Response (1 byte)
+	* 0x04: Agency ID (4 bytes)
 */
 
 // CreateBetBatchMessage: Creates a batch message with the given list of bets and EOF flag using TLV (type, length, value) format
@@ -132,6 +133,22 @@ func (p *Protocol) CreateBetMessage(
 	binary.BigEndian.PutUint32(numberBytes, uint32(number))
 	msg = append(msg, byte(len(numberBytes)))
 	msg = append(msg, numberBytes...)
+
+	return msg
+}
+
+func (p *Protocol) CreateAgencyIDMessage() []byte {
+	// Create the message as a byte slice
+	msg := make([]byte, 0)
+
+	// Append the TLV fields
+
+	// Type (Agency ID)
+	msg = append(msg, 0x04)
+	agencyID := make([]byte, 4)
+	binary.BigEndian.PutUint32(agencyID, uint32(p.id))
+	msg = append(msg, byte(len(agencyID)))
+	msg = append(msg, agencyID...)
 
 	return msg
 }
