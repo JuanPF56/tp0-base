@@ -136,7 +136,7 @@ class Protocol:
         start = current_byte
         length = 0
 
-        logging.debug(f"action: apuesta_recibida | result: in_progress | current_byte: {current_byte} | total_length: {total_length}")
+        #logging.debug(f"action: apuesta_recibida | result: in_progress | current_byte: {current_byte} | total_length: {total_length}")
 
         # Parse all the fields
         while start < current_byte + total_length + 10:
@@ -146,7 +146,7 @@ class Protocol:
             # Move to the next field
             start += 2 + field_length
 
-        logging.debug(f"action: apuesta_recibida | result: in_progress | fields: {fields}")
+        #logging.debug(f"action: apuesta_recibida | result: in_progress | fields: {fields}")
 
         # Check that all the fields are present
         if len(fields) != 5 or length != total_length:
