@@ -11,21 +11,24 @@ Modificar el servidor para que permita aceptar conexiones y procesar mensajes en
 
 ## Concurrencia
 
-La implementación final de concurrencia en el servidor se realizó utilizando la librería `multiprocessing` de Python, que permite crear procesos independientes y manejar la comunicación entre ellos. Para esto, se utilizaron **colas bloqueantes** otorgadas por un objeto `Manager`, que permite la comunicación entre procesos de manera segura y eficiente.
+La implementación final de paralelismo en el servidor se realizó utilizando la librería `multiprocessing` de Python, que permite crear procesos independientes y manejar la comunicación entre ellos. Para esto, se utilizaron **colas bloqueantes** otorgadas por un objeto `Manager`, que permite la comunicación entre procesos (IPC) de manera segura y eficiente. Las mismas aseguran que no se produzcan _race conditions_ y se ajustan adecuadamente a la naturaleza del problema (se puede pensar a los clientes como productores y el `BetHandler` como un consumidor de _batches_ de apuestas).
 
 El servidor cuenta con un proceso principal que se encarga de aceptar conexiones, y otro que se encarga de almacenar los _batches_ de apuestas y realizar los sorteos (`BetHandler`). Además, por cada conexión aceptada se crea un nuevo proceso `Client` que se encarga de la comunicación con el cliente correspondiente. Los mismos reciben como primer mensaje el ID de agencia por el cuál serán identificados, y luego se encargan de recibir cada _batch_ de apuestas y enviarlo al `BetHandler` para su procesamiento.
 
 `BetHandler` cuenta con un número de clientes a esperar (pasado como variable de entorno). Una vez que los mismos envíen su último _batch_ de apuestas, se procederá a realizar el sorteo y notificar a cada cliente el resultado del mismo.
 
-Las colas bloqueantes viven en el proceso principal y son pasadas a sus respectivos procesos. Existe una cola `bet_handler_queue` que es donde cada cliente deposita su _batch_ de apuestas, y una cola para cada cliente, identificada por su ID de agencia en un diccionario compartido.
+Las colas bloqueantes viven en el proceso principal y son pasadas como parámetros a sus respectivos procesos. Existe una cola `bet_handler_queue` que es donde cada cliente deposita su _batch_ de apuestas, y una cola para cada cliente, identificada por su ID de agencia en un diccionario compartido.
 
-A continuación se muestra un diagrama simple de la arquitectura del servidor:
+A continuación se muestra un diagrama simple de la arquitectura del servidor conectado a 3 clientes:
+
+![server](./TP0%20server.png)
+
 
 ### Observaciones
 
 Se podrían haber implementado procesos independientes de envío y recepción para cada cliente, pero dada la naturaleza del ejercicio no hubiera tenido sentido, ya que el cliente debe esperar a la respuesta del servidor antes de enviar el _batch_ siguiente. Si se quisiera implementar un cliente que envíe varios _batches_ de apuestas sin esperar la respuesta del servidor, se podría separar la responsabilidad de envío y recepción de los mismos.
 
-La concurrencia sucede principalmente en la aceptación de varios clientes al mismo tiempo. Los _batches_ de apuestas son introducidos en la cola bloqueante `bet_handler_queue`, y el proceso `BetHandler` se encarga de procesarlos uno a uno. Esto permite que el servidor pueda aceptar nuevas conexiones mientras procesa los _batches_ de apuestas y los clientes no deben esperar a su turno para comenzar su comunicación.
+El paralelismo sucede principalmente en la aceptación de varios clientes al mismo tiempo. Los _batches_ de apuestas son introducidos en la cola bloqueante `bet_handler_queue`, y el proceso `BetHandler` se encarga de procesarlos uno a uno. Esto permite que el servidor pueda aceptar nuevas conexiones mientras procesa los _batches_ de apuestas y los clientes no deben esperar a su turno para comenzar su comunicación.
 
 ## Comunicación y protocolo
 
@@ -93,7 +96,7 @@ make docker-compose-logs
 
 El trabajo práctico fue una buena prueba para poner en práctica los conocimientos previos. Si bien hay varios puntos a mejorar (sobre todo respecto al protocolo), considero que la implementación final es bastante robusta y cumple con los requisitos planteados.
 El uso de Docker y Docker Compose fue muy útil para mantener el entorno de desarrollo limpio y ordenado. La virtualización permitió que el trabajo se mantuviera independiente del sistema operativo. Las pruebas automáticas fueron una buena manera de asegurar que el código funcionara correctamente y de detectar errores en la implementación.
-El uso de la librería `multiprocessing` de Python fue una buena elección para implementar la concurrencia, dado que el manejo de _threads_ en Python es complicado por el GIL. La implementación de colas bloqueantes permitió una comunicación eficiente entre procesos, aislando la lógica de los mismos y evitando problemas de sincronización.
+El uso de la librería `multiprocessing` de Python fue una buena elección para implementar el paralelismo, dado que el manejo de concurrencia con _threads_ en Python es complicado por el GIL. La implementación de colas bloqueantes permitió una comunicación eficiente entre procesos, aislando la lógica de los mismos y evitando problemas de sincronización.
 
 Para ver el avance del proyecto se pueden consultar los READMES de cada ejercicio en sus respectivas _branches_, donde se explica la implementación de cada uno de ellos. A continuación se detallan los enlaces a cada uno de ellos:
 
