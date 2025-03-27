@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"strconv"
@@ -118,10 +117,7 @@ func (c *Client) sendBetBatches() error {
 	for c.is_running && !last_batch {
 		var err error
 		last_batch, err = c.sendNextBatch(current_batch)
-		if err == io.EOF {
-			break
-		}
-		// If there was an error other than EOF, return it
+		// If there was an error sending the batch, return it
 		if err != nil {
 			return err
 		}
