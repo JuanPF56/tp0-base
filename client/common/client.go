@@ -57,6 +57,9 @@ func (c *Client) StartClient() {
 	// Send the bet batches
 	c.sendBetBatches()
 
+	// Check winners
+	c.checkWinners()
+
 	// Close the connection and the file
 	c.conn.CloseConnection()
 	c.betReader.CloseFile()
@@ -77,6 +80,8 @@ func (c *Client) setUpSignalHandler() {
 		c.betReader.CloseFile()
 	}()
 }
+
+// checkWinners: Await server response for winners
 
 // sendBetBatches: Sends the bet batches to the server
 func (c *Client) sendBetBatches() {
