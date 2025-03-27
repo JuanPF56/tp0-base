@@ -35,7 +35,7 @@ class Connection:
         while len(data) < length:
             data += self._socket.recv(length - len(data))
         return data
-
+    
     def close(self):
         """
         Close connection

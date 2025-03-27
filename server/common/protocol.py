@@ -28,10 +28,31 @@ each field is indicated by a type byte, a length byte and the value itself.
             * 0x04: Birthdate (string, n bytes, max 255)
             * 0x05: Number (uint32, 4 bytes)
         * 0x03: Response (1 byte)
+        * 0x04: Agency ID (4 bytes)
 """
 class Protocol:
     def __init__(self):
         pass
+
+    def parseAgencyID(self, message):
+        """
+        Parse the agency ID message
+
+        The agency ID is expected to follow the TLV format indicated in the
+        class description. The message is expected to contain a single field
+        of type 0x04 with a length of 4 bytes.
+
+        """
+        # Check that the message is of type Agency ID
+        if message[0] != 0x04:
+            raise ValueError("invalid message type, expected Agency ID")
+        # Check that the length of the message is 4 bytes
+        if message[1] != 4:
+            raise ValueError("invalid message format, expected 4 bytes for agency ID")
+        # Get the agency ID
+        agency_id = int.from_bytes(message[2:6], byteorder='big')
+        
+        return agency_id
 
     def parseBatchMessage(self, message):
         """

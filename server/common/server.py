@@ -2,8 +2,8 @@ import logging
 import signal
 
 from common.acceptor import Acceptor
-from common.protocol import Protocol
-from common.utils import store_bets
+from common.client import Client
+from common.utils import has_won, load_bets, store_bets
 
 class Server:
     def __init__(self, port, listen_backlog, clients):
@@ -14,10 +14,10 @@ class Server:
         handles the communication with them
         """
         self.acceptor = Acceptor(port, listen_backlog)
-        self.protocol = Protocol()
         self.clients_to_await = clients
         self.is_running = True
 
+        self.clients= {}
 
         # Register signal handler for SIGTERM signal
         signal.signal(signal.SIGTERM, self.__handle_sigterm)
@@ -27,29 +27,44 @@ class Server:
         Signal handler for SIGTERM signal
         
         When SIGTERM signal is received, server will stop accepting new
-        connections and will finish the current connections before
-        exiting
+        connections and stop all the client connections
         """
         logging.info("SIGTERM received, stopping server")
-        self.is_running = False
-        logging.info("Closing acceptor connection")
-        self.acceptor.close()
+        self.__stop_server()
 
     def run(self):
         """
-        Dummy Server loop
+        Server loop
 
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
+        Server that accept new connections and establishes a
+        communication with clients (one at a time), it handles the
+        bets of each client and leaves its connection open until all 
+        the clients are done, then it picks the winners and notifies
+        them all
         """
 
         while self.is_running:
-            client_connection = self.acceptor.accept()
+            try:
+                # Accept new connections
+                client_connection = self.acceptor.accept()
+            except OSError as e:
+                # If an error occurs, stop the server
+                logging.error(f"action: accept_connections | result: fail | error: {e}")
+                self.__stop_server()
+                break
             if client_connection is not None:
-                self.__handle_client_connection(client_connection)
+                new_client = Client(client_connection)
+                agency_id = new_client.getAgencyID()
+                self.clients[agency_id] = new_client
+                self.__handle_client_connection(agency_id)
 
-    def __handle_client_connection(self, client_connection):
+                # Check if all the clients being awaited are done
+                if len(self.clients) == self.clients_to_await and all(client.getDone() for client in self.clients.values()):
+                    self.__handle_winners()
+                    self.__stop_server()
+
+            
+    def __handle_client_connection(self, agency_id):
         """
         Read message from a specific client socket and closes the socket
 
@@ -57,18 +72,41 @@ class Server:
         client socket will also be closed
         """
         last_batch = False
+        client= self.clients[agency_id]
         try:
             while not last_batch:
-                bets, last_batch = self.protocol.parseBatchMessage(client_connection.recvMsg())
+                # Parse the message and store the bets
+                bets, last_batch = client.receiveBatch()
                 success = self._store_bet(bets)
-                client_connection.sendMsg(self.protocol.createResponse(success))
+                client.sendResponse(success)
         except OSError as e:
             logging.error(f"action: apuesta_recibida | result: fail | error: {e}")
         except ValueError as e:
             logging.error(f"action: apuesta_recibida | result: fail | error: {e}")
-            client_connection.sendMsg(self.protocol.createResponse(False))
+            client.sendResponse(False)
         finally:
-            client_connection.close()
+            # If all the bets were received, keep the connection open but mark the client as done
+            client.setDone()
+
+
+    def __handle_winners(self):
+        """
+        Handle winners
+
+        Function that gets the winners from the storage file and sends
+        the winners to all the clients
+        """
+        try:
+            all_bets = load_bets()
+            winners = {}
+            for bet in all_bets:
+                if has_won(bet):
+                    winners[bet.agency].append(bet)
+            for client in self.clients.values():
+                client.sendWinners(winners.get(client.getAgencyID(), [])) 
+            logging.info(f"action: sorteo | result: success")     
+        except OSError as e:
+            logging.error(f"action: sorteo | result: fail | error: {e}")      
 
 
     def _store_bet(self, bets):
@@ -85,3 +123,17 @@ class Server:
         except OSError as e:
             logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(bets)}")
             return False
+        
+    def __stop_server(self):
+        """
+        Stop the server
+
+        Function stops the server by closing the acceptor socket and
+        all the client sockets
+        """
+        self.is_running = False
+        logging.info("Closing acceptor connection")
+        self.acceptor.close()
+        logging.info("Closing client connections")
+        for client in self.clients.values():
+            client.close()
