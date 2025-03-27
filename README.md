@@ -4,26 +4,30 @@
 
 Las secciones de repaso del trabajo práctico plantean un caso de uso denominado **Lotería Nacional**. Para la resolución de las mismas deberá utilizarse como base el código fuente provisto en la primera parte, con las modificaciones agregadas en el ejercicio 4.
 
-### Ejercicio N°6:
-Modificar los clientes para que envíen varias apuestas a la vez (modalidad conocida como procesamiento por _chunks_ o _batchs_). 
-Los _batchs_ permiten que el cliente registre varias apuestas en una misma consulta, acortando tiempos de transmisión y procesamiento.
+### Ejercicio N°7:
 
-La información de cada agencia será simulada por la ingesta de su archivo numerado correspondiente, provisto por la cátedra dentro de `.data/datasets.zip`.
-Los archivos deberán ser inyectados en los containers correspondientes y persistido por fuera de la imagen (hint: `docker volumes`), manteniendo la convencion de que el cliente N utilizara el archivo de apuestas `.data/agency-{N}.csv` .
+Modificar los clientes para que notifiquen al servidor al finalizar con el envío de todas las apuestas y así proceder con el sorteo.
+Inmediatamente después de la notificacion, los clientes consultarán la lista de ganadores del sorteo correspondientes a su agencia.
+Una vez el cliente obtenga los resultados, deberá imprimir por log: `action: consulta_ganadores | result: success | cant_ganadores: ${CANT}`.
 
-En el servidor, si todas las apuestas del *batch* fueron procesadas correctamente, imprimir por log: `action: apuesta_recibida | result: success | cantidad: ${CANTIDAD_DE_APUESTAS}`. En caso de detectar un error con alguna de las apuestas, debe responder con un código de error a elección e imprimir: `action: apuesta_recibida | result: fail | cantidad: ${CANTIDAD_DE_APUESTAS}`.
+El servidor deberá esperar la notificación de las 5 agencias para considerar que se realizó el sorteo e imprimir por log: `action: sorteo | result: success`.
+Luego de este evento, podrá verificar cada apuesta con las funciones `load_bets(...)` y `has_won(...)` y retornar los DNI de los ganadores de la agencia en cuestión. Antes del sorteo no se podrán responder consultas por la lista de ganadores con información parcial.
 
-La cantidad máxima de apuestas dentro de cada _batch_ debe ser configurable desde config.yaml. Respetar la clave `batch: maxAmount`, pero modificar el valor por defecto de modo tal que los paquetes no excedan los 8kB. 
+Las funciones `load_bets(...)` y `has_won(...)` son provistas por la cátedra y no podrán ser modificadas por el alumno.
 
-Por su parte, el servidor deberá responder con éxito solamente si todas las apuestas del _batch_ fueron procesadas correctamente.
+No es correcto realizar un broadcast de todos los ganadores hacia todas las agencias, se espera que se informen los DNIs ganadores que correspondan a cada una de ellas.
 
 ### Resolución
 
-Para la resolución de este ejercicio se modificó el protocolo de comunicación entre el cliente y el servidor para permitir el envío de apuestas en _batch_. Se agregó además una nueva entidad `BetReader` en los clientes que permite leer los archivos de apuestas y construir los _batches_. Los archivos son montados en los containers de los clientes y se leen en el momento de la ejecución.
+En la resolución de este ejercicio se creó una nueva entidad `Client` en el servidor que se encarga de aislar la lógica de comunicación para un cliente determinado. Esta entidad será la nueva encargada de todo tipo de comunicación entre el servidor y cliente, teniendo como atributos una entidad `Connection`, un `Protocol` para la serialización y deserialización de mensajes, y además conocerá el ID de la agencia a la que pertenece. Este ID será envíado por el cliente al servidor en el momento de la conexión.
+
+Esta implementación permite que el servidor pueda manejar múltiples clientes sin tener que cerrar las conexiones, lo cuál es necesario para luego poder comunicarles los ganadores. La entidad será muy útil en el próximo ejercicio, donde se deberá manejar la concurrencia en el servidor, ya que la idea es que cada `Client` se ejecute en un proceso separado.
+
+El servidor recibe los _batches_ de apuestas de todos los clientes, siendo notificado por cada uno de ellos cuando terminan de enviar todas las apuestas. Una vez que todos los clientes han notificado, el servidor procede a realizar el sorteo y a comunicar los ganadores a cada cliente utilizando como referencia las IDs de las agencias.
 
 #### Protocolo
 
-Se implementó un nuevo tipo de mensaje, `Batch`, que permite enviar varias apuestas en un solo mensaje. Se realizaron cambios en la estructura del tipo `Bet`, quitando el ID de la agencia del mismo para no repetir información. Los mensajes de tipo `Batch` contienen un campo con el ID de la agencia, un campo con la cantidad de apuestas, uno o más campos con las apuestas en sí y un campo con un flag que indica si es el último _batch_ a enviar.
+Se agregaron dos tipos de mensajes nuevos al protocolo: `Agency ID` y `Winners`. El primero es un mensaje que se envía al servidor al momento de la conexión para informar a qué agencia pertenece el cliente, es un entero de 4 bytes. El segundo es un mensaje que el servidor envía al cliente con los ganadores de la agencia a la que pertenece, y está compuesto simplemente por 0 o varios campos `Winner`, que a su vez están compuestos por un DNI y un número, ambos de 4 bytes.
 
 ---------------------------------------
 Los tipos del protocolo quedaron de la siguiente manera:
@@ -40,44 +44,31 @@ Los tipos del protocolo quedaron de la siguiente manera:
     * 0x04: Birthdate (string, n bytes, max 255)
     * 0x05: Number (uint32, 4 bytes)
 * 0x03: Response (1 byte)
+* 0x04: Agency ID (4 bytes)
+* 0x05: Winners (n bytes, max 65535, compuesto de los siguientes campos)
+    * 0x01: Winner (n bytes, pueden ser 0 o varios)
+        * 0x01: DNI (uint32, 4 bytes)
+        * 0x02: Number (uint32, 4 bytes)
 -----------------------------------------
-Se decidió otorgar 2 bytes al campo _length_ de los mensajes de tipo `Batch` para permitir el envío de _batches_ más grandes (hasta 65535 bytes). Se decidió (por practicidad para estos ejercicios) mantener el campo _length_ de los mensajes de tipo `Bet` en 1 byte. Esto quiere decir que una apuesta puede contener 255 bytes de información, lo cual se asume suficiente para los datos manejados, y se establece como una limitación del protocolo. La misma puede ser sencillamente modificada en el futuro si se requiere.
 
-Por esta razón, la cantidad máxima por defecto de cada _batch_ se estableció en 20 apuestas. Esto permite que los mensajes no excedan los 8KB como es pedido en el enunciado.
-Si asumimos que cada apuesta tiene un tamaño de 268 bytes (13 bytes de overhead + 255 bytes de datos), entonces un _batch_ de 20 apuestas tendrá un tamaño de 5360 bytes, a lo cuál se le suman 15 bytes por el resto de los campos de la estructura del tipo `Batch`, quedando un total de 5375 bytes, que es inferior a los 8KB permitidos y da un margen de seguridad para otros campos que puedan agregarse en el futuro.
-
-**Importante:** Por simplicidad de este ejercicio y de los próximos, el protocolo asumirá que los campos llegarán en el orden establecido en la descripción de los tipos. Esto es, por ejemplo, que el campo `Amount of bets` siempre será el primer campo de un mensaje de tipo `Batch`.
+El tipo de mensaje `Winners` tendrá reservado 2 bytes para el largo, para el caso extremo en que haya muchos ganadores y se necesiten más de 65535 bytes para enviarlos. Consideraciones de _batches_ de ganadores quedan fuera del alcance de esta implementación, pero sería una mejora a futuro.
+Contará con 0 o más campos `Winner`, que a su vez están compuestos por un DNI y un número, ambos de 4 bytes.
 
 ##### Ejemplo de mensaje
 
-Tomemos como ejemplo un mensaje `Batch` que sea de la agencia 1 y contenga 1 sola apuesta, la cual a su vez es la última apuesta a enviar. Mantengamos como ejemplo la misma apuesta del ejercicio anterior:
+Supongamos que tenemos dos ganadores, con DNI 30904465 y número 7574, y DNI 30123912 y número 1234. El mensaje de ganadores serializado sería (en hexadecimal):
 
 ```
-Nombre: "Santiago Lionel"
-Apellido: "Lorca"
-DNI: 30904465
-Nacimiento: "1999-03-17"
-Número: 7574
+01 00 10 (Winners)
+    01 08 (Winner)
+        01 04 01 D7 90 91 (DNI 0)
+        02 04 00 00 1D 96 (Número 7574)
+    01 08 (Winner)
+        01 04 01 CB A7 88 (DNI 0)
+        02 04 00 00 04 D2 (Número 1234)
 ```
 
-El mensaje serializado sería (en hexadecimal):
-
-```
-01 00 33 (Batch)
-    01 04 00 00 00 01 (Amount of bets: 1)
-    02 2A (Bet)
-        02 0F 53 61 6E 74 69 61 67 6F 20 4C 69 6F 6E 65 6C (Name: "Santiago Lionel")
-        03 05 4C 6F 72 63 61 (Surname: "Lorca")
-        04 04 01 D7 90 91 (DNI: 30904465)
-        05 0A 31 39 39 39 2D 30 33 2D 31 37 (Birthdate: "1999-03-17")
-        06 04 00 00 1D 96 (Number: 7574)
-    ... (aquí irían más apuestas si las hubiera)
-    03 04 00 00 00 01 (Agency ID: 1)
-    04 01 01 (Last batch flag: 1)
-    
-```
-
-El servidor seguirá enviando respuestas de tipo `Response` como en el ejercicio anterior ante cada procesamiento de un _batch_ de apuestas (sólo que ahora le corresponde el tipo 0x03). Se decidió dejar este campo como está para representar respuestas booleanas del servidor. En el próximo ejercicio se implementará otro tipo de respuesta para notificar ganadores.
+Un ejemplo de mensaje con el número de agencia envíado por el cliente (supongamos que la agencia es la 1) sería simplemente `04 04 00 00 00 01`. Se asume que en un caso de uso real, los IDs de agencias no serán algo trivial como 1, 2, 3, sino que serán IDs más complejos, por lo que se decidió mantener el tamaño de 4 bytes.
 
 -----------------
 -----------------
