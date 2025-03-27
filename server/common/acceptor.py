@@ -34,4 +34,6 @@ class Acceptor:
         
         Function closes the server socket
         """
-        self._server_socket.close()
+        if self._server_socket:
+            self._server_socket.close()
+            self._server_socket = None

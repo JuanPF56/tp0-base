@@ -42,4 +42,6 @@ class Connection:
 
         Closes the socket connection to the client
         """
-        self._socket.close()
+        if self._socket:
+            self._socket.close()
+            self._socket = None
