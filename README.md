@@ -64,7 +64,7 @@ Tipos del protocolo:
 
 Considero que TLV quizás no fue la mejor elección para el desarrollo de este trabajo. Decidí implementarlo por su flexibilidad ante distintos tipos, pero no pude aprovecharlo al máximo. Como la comunicación cliente/servidor es bastante simple, no se vieron muchos casos donde la identificación de tipos fuera necesaria. Esto generó que la desventaja de tener un _overhead_ de bytes por cada mensaje no se vea compensada por la flexibilidad que ofrece. Sin embargo, considero que no es una mala alternativa si se quisiera escalar la complejidad del sistema. 
 
-Una mejora posible sería quitar la redundancia de algunos campos de largo fijo, o en el caso de las respuestas del servidor enviar un sólo byte de confirmación. 
+Una mejora posible sería quitar la redundancia de algunos campos de largo fijo, o en el caso de las respuestas del servidor enviar un solo byte de confirmación. 
 
 ## Virtualización de la entrega y ejecución
 
@@ -97,6 +97,7 @@ make docker-compose-logs
 El trabajo práctico fue una buena prueba para poner en práctica los conocimientos previos. Si bien hay varios puntos a mejorar (sobre todo respecto al protocolo), considero que la implementación final es bastante robusta y cumple con los requisitos planteados.
 El uso de Docker y Docker Compose fue muy útil para mantener el entorno de desarrollo limpio y ordenado. La virtualización permitió que el trabajo se mantuviera independiente del sistema operativo. Las pruebas automáticas fueron una buena manera de asegurar que el código funcionara correctamente y de detectar errores en la implementación.
 El uso de la librería `multiprocessing` de Python fue una buena elección para implementar el paralelismo, dado que el manejo de concurrencia con _threads_ en Python es complicado por el GIL. La implementación de colas bloqueantes permitió una comunicación eficiente entre procesos, aislando la lógica de los mismos y evitando problemas de sincronización.
+Se dejaron algunas cosas fuera del scope de la resolución, como el chequeo de existencia de archivos de apuestas para clientes (se asume que existirán tantos archivos como clientes se configure).
 
 Para ver el avance del proyecto se pueden consultar los READMES de cada ejercicio en sus respectivas _branches_, donde se explica la implementación de cada uno de ellos. A continuación se detallan los enlaces a cada uno de ellos:
 
