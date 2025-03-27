@@ -112,18 +112,16 @@ func (c *Client) checkWinners() {
 // sendBetBatches: Sends the bet batches to the server
 func (c *Client) sendBetBatches() error {
 	last_batch := false
-	empty := false
 	current_batch := 0
 	// Loop until the client is stopped, there are no more batches or an error occurs
 	for c.is_running && !last_batch {
 		var err error
-		last_batch, empty, err = c.sendNextBatch(current_batch)
+		last_batch, err = c.sendNextBatch(current_batch)
 		// If there was an error sending the batch, stop sending batches
 		if err != nil {
 			return err
 		}
-		// If flag empty is true, that means nothing else was sent
-		if c.is_running && !empty {
+		if c.is_running {
 			// If the response was unsuccessful, stop sending batches
 			if !c.handleBatchResponse(current_batch) {
 				return fmt.Errorf("batch %v was unsuccessful", current_batch)
@@ -135,24 +133,20 @@ func (c *Client) sendBetBatches() error {
 }
 
 // sendNextBatch: Sends the next batch of bets to the server
-func (c *Client) sendNextBatch(current_batch int) (bool, bool, error) {
+func (c *Client) sendNextBatch(current_batch int) (bool, error) {
 	// Get the next batch of bets
 	batch, is_last_batch, err := c.betReader.GetNextBatch()
 	if err != nil {
 		log.Errorf("action: obtener_apuestas | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		return false, false, err
-	}
-	if len(batch) == 0 {
-		// If there are no more bets, return
-		return true, true, nil
+		return false, err
 	}
 	// Send the batch to the server
 	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch, is_last_batch))
 	if err != nil {
 		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
-		return false, false, err
+		return false, err
 	}
-	return is_last_batch, false, nil
+	return is_last_batch, nil
 }
 
 // handleBatchResponse: Handles the response from the server after sending a batch of bets

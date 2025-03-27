@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
@@ -93,7 +94,7 @@ func (b *BetReader) readBet() (Bet, error) {
 
 // peekBet: Peeks if there are more bets to read
 func (b *BetReader) peekEOF() bool {
-	_, err := b.file.Seek(0, 1)
+	_, err := b.file.Seek(0, io.SeekCurrent)
 	return err != nil
 }
 
