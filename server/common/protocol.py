@@ -51,6 +51,9 @@ class Protocol:
             * Last batch flag
 
         """
+
+        logging.debug(f"action: apuesta_recibida | result: in_progress | message: {message}")
+
         length = 0
         # Check that the message is of type Batch
         if message[0] != 0x01:
@@ -132,21 +135,27 @@ class Protocol:
         fields = {}
         start = current_byte
         length = 0
+
+        logging.debug(f"action: apuesta_recibida | result: in_progress | current_byte: {current_byte} | total_length: {total_length}")
+
         # Parse all the fields
-        while start < current_byte + length:
-            field_type, field_value, field_length = self._get_next_field(message, start)
-            fields[field_type] = field_value
-            # Add the length of the field's value
+        while start < current_byte + total_length + 10:
+            field_type, field_value, field_length = self._get_next_bet_field(message, start)
+            fields[field_type] = field_value# Add the length of the field's value
             length += field_length
             # Move to the next field
             start += 2 + field_length
+
+        logging.debug(f"action: apuesta_recibida | result: in_progress | fields: {fields}")
 
         # Check that all the fields are present
         if len(fields) != 5 or length != total_length:
             raise ValueError("invalid message format")
         
         try:
-            return (Bet(fields[0x01], fields[0x02], fields[0x03], fields[0x04], fields[0x05]), start)
+            # Return the bet with placeholder agency 0 (will be replaced later by the actual agency
+            # ID sent in the batch message)
+            return (Bet(0,fields[0x01], fields[0x02], fields[0x03], fields[0x04], fields[0x05]), start)
         except KeyError:
             logging.error(f"action: apuesta_recibida | result: fail | cantidad: {amount_of_bets}")
             raise ValueError("missing fields in Bet message")
