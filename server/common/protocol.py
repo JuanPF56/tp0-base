@@ -52,7 +52,7 @@ class Protocol:
 
         """
 
-        logging.debug(f"action: apuesta_recibida | result: in_progress | message: {message}")
+        #logging.debug(f"action: apuesta_recibida | result: in_progress | message: {message}")
 
         length = 0
         # Check that the message is of type Batch

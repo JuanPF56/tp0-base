@@ -6,5 +6,5 @@ loop:
 log:
   level: "INFO"
 batch:
-  maxAmount: 10
+  maxAmount: 20
   fileName: "dataset.csv"
