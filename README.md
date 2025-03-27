@@ -1,36 +1,41 @@
 # TP0: Docker + Comunicaciones + Concurrencia
 
-## Parte 2: Repaso de Comunicaciones
+## Parte 3: Repaso de Concurrencia
+En este ejercicio es importante considerar los mecanismos de sincronización a utilizar para el correcto funcionamiento de la persistencia.
 
-Las secciones de repaso del trabajo práctico plantean un caso de uso denominado **Lotería Nacional**. Para la resolución de las mismas deberá utilizarse como base el código fuente provisto en la primera parte, con las modificaciones agregadas en el ejercicio 4.
+### Ejercicio N°8:
 
-### Ejercicio N°7:
+Modificar el servidor para que permita aceptar conexiones y procesar mensajes en paralelo. En caso de que el alumno implemente el servidor en Python utilizando _multithreading_,  deberán tenerse en cuenta las [limitaciones propias del lenguaje](https://wiki.python.org/moin/GlobalInterpreterLock).
 
-Modificar los clientes para que notifiquen al servidor al finalizar con el envío de todas las apuestas y así proceder con el sorteo.
-Inmediatamente después de la notificacion, los clientes consultarán la lista de ganadores del sorteo correspondientes a su agencia.
-Una vez el cliente obtenga los resultados, deberá imprimir por log: `action: consulta_ganadores | result: success | cant_ganadores: ${CANT}`.
+## Resolución final y conclusiones
 
-El servidor deberá esperar la notificación de las 5 agencias para considerar que se realizó el sorteo e imprimir por log: `action: sorteo | result: success`.
-Luego de este evento, podrá verificar cada apuesta con las funciones `load_bets(...)` y `has_won(...)` y retornar los DNI de los ganadores de la agencia en cuestión. Antes del sorteo no se podrán responder consultas por la lista de ganadores con información parcial.
+## Concurrencia
 
-Las funciones `load_bets(...)` y `has_won(...)` son provistas por la cátedra y no podrán ser modificadas por el alumno.
+La implementación final de concurrencia en el servidor se realizó utilizando la librería `multiprocessing` de Python, que permite crear procesos independientes y manejar la comunicación entre ellos. Para esto, se utilizaron **colas bloqueantes** otorgadas por un objeto `Manager`, que permite la comunicación entre procesos de manera segura y eficiente.
 
-No es correcto realizar un broadcast de todos los ganadores hacia todas las agencias, se espera que se informen los DNIs ganadores que correspondan a cada una de ellas.
+El servidor cuenta con un proceso principal que se encarga de aceptar conexiones, y otro que se encarga de almacenar los _batches_ de apuestas y realizar los sorteos (`BetHandler`). Además, por cada conexión aceptada se crea un nuevo proceso `Client` que se encarga de la comunicación con el cliente correspondiente. Los mismos reciben como primer mensaje el ID de agencia por el cuál serán identificados, y luego se encargan de recibir cada _batch_ de apuestas y enviarlo al `BetHandler` para su procesamiento.
 
-### Resolución
+`BetHandler` cuenta con un número de clientes a esperar (pasado como variable de entorno). Una vez que los mismos envíen su último _batch_ de apuestas, se procederá a realizar el sorteo y notificar a cada cliente el resultado del mismo.
 
-En la resolución de este ejercicio se creó una nueva entidad `Client` en el servidor que se encarga de aislar la lógica de comunicación para un cliente determinado. Esta entidad será la nueva encargada de todo tipo de comunicación entre el servidor y cliente, teniendo como atributos una entidad `Connection`, un `Protocol` para la serialización y deserialización de mensajes, y además conocerá el ID de la agencia a la que pertenece. Este ID será envíado por el cliente al servidor en el momento de la conexión.
+Las colas bloqueantes viven en el proceso principal y son pasadas a sus respectivos procesos. Existe una cola `bet_handler_queue` que es donde cada cliente deposita su _batch_ de apuestas, y una cola para cada cliente, identificada por su ID de agencia en un diccionario compartido.
 
-Esta implementación permite que el servidor pueda manejar múltiples clientes sin tener que cerrar las conexiones, lo cuál es necesario para luego poder comunicarles los ganadores. La entidad será muy útil en el próximo ejercicio, donde se deberá manejar la concurrencia en el servidor, ya que la idea es que cada `Client` se ejecute en un proceso separado.
+A continuación se muestra un diagrama simple de la arquitectura del servidor:
 
-El servidor recibe los _batches_ de apuestas de todos los clientes, siendo notificado por cada uno de ellos cuando terminan de enviar todas las apuestas. Una vez que todos los clientes han notificado, el servidor procede a realizar el sorteo y a comunicar los ganadores a cada cliente utilizando como referencia las IDs de las agencias.
+### Observaciones
 
-#### Protocolo
+Se podrían haber implementado procesos independientes de envío y recepción para cada cliente, pero dada la naturaleza del ejercicio no hubiera tenido sentido, ya que el cliente debe esperar a la respuesta del servidor antes de enviar el _batch_ siguiente. Si se quisiera implementar un cliente que envíe varios _batches_ de apuestas sin esperar la respuesta del servidor, se podría separar la responsabilidad de envío y recepción de los mismos.
 
-Se agregaron dos tipos de mensajes nuevos al protocolo: `Agency ID` y `Winners`. El primero es un mensaje que se envía al servidor al momento de la conexión para informar a qué agencia pertenece el cliente, es un entero de 4 bytes. El segundo es un mensaje que el servidor envía al cliente con los ganadores de la agencia a la que pertenece, y está compuesto simplemente por 0 o varios campos `Winner`, que a su vez están compuestos por un DNI y un número, ambos de 4 bytes.
+La concurrencia sucede principalmente en la aceptación de varios clientes al mismo tiempo. Los _batches_ de apuestas son introducidos en la cola bloqueante `bet_handler_queue`, y el proceso `BetHandler` se encarga de procesarlos uno a uno. Esto permite que el servidor pueda aceptar nuevas conexiones mientras procesa los _batches_ de apuestas y los clientes no deben esperar a su turno para comenzar su comunicación.
+
+## Comunicación y protocolo
+
+A lo largo de todo el trabajo se trató de aislar las capas de negocio, comunicación y serialización. El envío de mensajes asegura que no sucedan _short reads_ ni _short writes_ sin importar la información serializada por el protocolo. La lógica del programa tampoco se ve afectada por la implementación del protocolo, por lo que podría cambiarse sin afectar el resto del código.
+
+Como ya fue expresado en ejercicios anteriores (ver ejemplos en [ej6](https://github.com/JuanPF56/tp0-base/tree/ej6) y [ej7](https://github.com/JuanPF56/tp0-base/tree/ej7)), el protocolo de comunicación entre cliente y servidor utiliza un formato TLV (Type-Length-Value). Siguiendo la siguiente estructura:
 
 ---------------------------------------
-Los tipos del protocolo quedaron de la siguiente manera:
+```
+Tipos del protocolo:
 
 * 0x01: Batch (n bytes, max 65535, compuesto de los siguientes campos)
     * 0x01: Amount of bets (uint32, 4 bytes)
@@ -49,26 +54,59 @@ Los tipos del protocolo quedaron de la siguiente manera:
     * 0x01: Winner (n bytes, pueden ser 0 o varios)
         * 0x01: DNI (uint32, 4 bytes)
         * 0x02: Number (uint32, 4 bytes)
+```
 -----------------------------------------
 
-El tipo de mensaje `Winners` tendrá reservado 2 bytes para el largo, para el caso extremo en que haya muchos ganadores y se necesiten más de 65535 bytes para enviarlos. Consideraciones de _batches_ de ganadores quedan fuera del alcance de esta implementación, pero sería una mejora a futuro.
-Contará con 0 o más campos `Winner`, que a su vez están compuestos por un DNI y un número, ambos de 4 bytes.
+### Observaciones
 
-##### Ejemplo de mensaje
+Considero que TLV quizás no fue la mejor elección para el desarrollo de este trabajo. Decidí implementarlo por su flexibilidad ante distintos tipos, pero no pude aprovecharlo al máximo. Como la comunicación cliente/servidor es bastante simple, no se vieron muchos casos donde la identificación de tipos fuera necesaria. Esto generó que la desventaja de tener un _overhead_ de bytes por cada mensaje no se vea compensada por la flexibilidad que ofrece. Sin embargo, considero que no es una mala alternativa si se quisiera escalar la complejidad del sistema. 
 
-Supongamos que tenemos dos ganadores, con DNI 30904465 y número 7574, y DNI 30123912 y número 1234. El mensaje de ganadores serializado sería (en hexadecimal):
+Una mejora posible sería quitar la redundancia de algunos campos de largo fijo, o en el caso de las respuestas del servidor enviar un sólo byte de confirmación. 
 
+## Virtualización de la entrega y ejecución
+
+El trabajo práctico se mantuvo siempre dentro de un entorno virtualizado, utilizando Docker y Docker Compose. El script generado en el [ejercicio 1](https://github.com/JuanPF56/tp0-base/tree/ej1) (`generar-compose.sh`) permite crear un archivo de Docker Compose con una cantidad configurable de clientes. El mismo fue adaptado en cada ejercicio para asegurar el correcto funcionamiento del sistema (por ejemplo con la inyección de archivos de apuestas). 
+
+Las maneras de ejecutar tanto el script como el Docker Compose se mantuvieron constantes:
+
+```bash
+# Generar el compose
+./generar-compose.sh docker-compose-dev.yaml <cantidad_de_clientes>
 ```
-01 00 10 (Winners)
-    01 08 (Winner)
-        01 04 01 D7 90 91 (DNI 0)
-        02 04 00 00 1D 96 (Número 7574)
-    01 08 (Winner)
-        01 04 01 CB A7 88 (DNI 0)
-        02 04 00 00 04 D2 (Número 1234)
+
+```bash
+# Levantar el sistema
+make docker-compose-up
 ```
 
-Un ejemplo de mensaje con el número de agencia envíado por el cliente (supongamos que la agencia es la 1) sería simplemente `04 04 00 00 00 01`. Se asume que en un caso de uso real, los IDs de agencias no serán algo trivial como 1, 2, 3, sino que serán IDs más complejos, por lo que se decidió mantener el tamaño de 4 bytes.
+```bash
+# Detener el sistema
+make docker-compose-down
+```
+
+```bash
+# Ver logs
+make docker-compose-logs
+```
+
+## Conclusiones finales
+
+El trabajo práctico fue una buena prueba para poner en práctica los conocimientos previos. Si bien hay varios puntos a mejorar (sobre todo respecto al protocolo), considero que la implementación final es bastante robusta y cumple con los requisitos planteados.
+El uso de Docker y Docker Compose fue muy útil para mantener el entorno de desarrollo limpio y ordenado. La virtualización permitió que el trabajo se mantuviera independiente del sistema operativo. Las pruebas automáticas fueron una buena manera de asegurar que el código funcionara correctamente y de detectar errores en la implementación.
+El uso de la librería `multiprocessing` de Python fue una buena elección para implementar la concurrencia, dado que el manejo de _threads_ en Python es complicado por el GIL. La implementación de colas bloqueantes permitió una comunicación eficiente entre procesos, aislando la lógica de los mismos y evitando problemas de sincronización.
+
+Para ver el avance del proyecto se pueden consultar los READMES de cada ejercicio en sus respectivas _branches_, donde se explica la implementación de cada uno de ellos. A continuación se detallan los enlaces a cada uno de ellos:
+
+```markdown
+- [Ejercicio 1: Generar Docker Compose](https://github.com/JuanPF56/tp0-base/tree/ej1)
+- [Ejercicio 2: Configuración dinámica](https://github.com/JuanPF56/tp0-base/tree/ej2)
+- [Ejercicio 3: Validación del servidor](https://github.com/JuanPF56/tp0-base/tree/ej3)
+- [Ejercicio 4: Finalización graceful](https://github.com/JuanPF56/tp0-base/tree/ej4)
+- [Ejercicio 5: Lógica de negocio](https://github.com/JuanPF56/tp0-base/tree/ej5)
+- [Ejercicio 6: Procesamiento por batchs](https://github.com/JuanPF56/tp0-base/tree/ej6)
+- [Ejercicio 7: Notificación y sorteo](https://github.com/JuanPF56/tp0-base/tree/ej7)
+- [Ejercicio 8: Concurrencia en el servidor](https://github.com/JuanPF56/tp0-base/tree/ej8) (actual)
+```
 
 -----------------
 -----------------
