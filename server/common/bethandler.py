@@ -48,6 +48,12 @@ class BetHandler(multiprocessing.Process):
                 break
         self.close()
 
+    def getQueue(self):
+        """
+        Get the queue of the bet handler
+        """
+        return self.queue
+
     def __handleBets(self, agency_id, bets, last_batch):
         """
         Handle incoming bets from clients
