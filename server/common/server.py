@@ -23,9 +23,9 @@ class Server:
         self.clients= {}
 
         # Register signal handler for SIGTERM signal
-        signal.signal(signal.SIGTERM, self.__handle_sigterm)
+        signal.signal(signal.SIGTERM, self.__handleSigterm)
 
-    def __handle_sigterm(self, signum, frame):
+    def __handleSigterm(self, signum, frame):
         """
         Signal handler for SIGTERM signal
         
@@ -33,7 +33,7 @@ class Server:
         connections and stop all the client connections
         """
         logging.info("SIGTERM received, stopping server")
-        self.__stop_server()
+        self.__stopServer()
 
     def run(self):
         """
@@ -65,56 +65,11 @@ class Server:
             except OSError as e:
                 # If an error occurs, stop the server
                 logging.error(f"action: aceptar_conexion | result: fail | error: {e}")
-                self.__stop_server()
+                self.__stopServer()
                 break
-                
-
-               """ # Check if all the clients being awaited are done
-                if len(self.clients) == self.clients_to_await and all(client.getDone() for client in self.clients.values()):
-                    self.__handle_winners()
-                    self.__stop_server()"""
-
-
-
-
-    def __handle_winners(self):
-        """
-        Handle winners
-
-        Function that gets the winners from the storage file and sends
-        the winners to all the clients
-        """
-        try:
-            all_bets = load_bets()
-            winners = {}
-            for client in self.clients.values():
-                winners[client.getAgencyID()] = []
-            for bet in all_bets:
-                if has_won(bet):
-                    winners[bet.agency].append(bet)
-            for client in self.clients.values():
-                client.sendWinners(winners.get(client.getAgencyID(), [])) 
-            logging.info(f"action: sorteo | result: success")     
-        except OSError as e:
-            logging.error(f"action: sorteo | result: fail | error: {e}")      
-
-
-    def _store_bet(self, bets):
-        """
-        Store the bets in the storage file
-
-        Function stores the bets in the storage file and returns a boolean
-        indicating if the operation was successful
-        """
-        try:
-            store_bets(bets)
-            logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
-            return True
-        except OSError as e:
-            logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(bets)}")
-            return False
+            
         
-    def __stop_server(self):
+    def __stopServer(self):
         """
         Stop the server
 

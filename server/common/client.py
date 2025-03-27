@@ -9,6 +9,7 @@ class Client(multiprocessing.Process):
 
         This class is a process that handles the communication with a client
         """
+        super().__init__()
         self.connection = connection
         self.protocol = Protocol()
         self.is_done = False
@@ -18,7 +19,8 @@ class Client(multiprocessing.Process):
         self.joined = False
 
         # Send agency ID and queue to the bet handler
-        self.bet_handler_queue.put((self.agency_id, self.queue))
+        self.bet_handler_queue.put(("NEW_CLIENT", self.agency_id, self.queue))
+        logging.info(f"action: nuevo_cliente | result: success | agency_id: {self.agency_id}")
 
     def run(self):
         """
@@ -35,7 +37,7 @@ class Client(multiprocessing.Process):
             while not last_batch:
                 # Parse the message and send it to the bet handler
                 bets, last_batch = self.receiveBatch()
-                self.bet_handler_queue.put((self.agency_id, bets, last_batch))
+                self.bet_handler_queue.put(("BETS", self.agency_id, bets, last_batch))
                 # Wait for confirmation from the bet handler
                 success = self.queue.get()
                 self.sendResponse(success)
@@ -50,7 +52,7 @@ class Client(multiprocessing.Process):
         finally:
             self.close()
             
-    def _receiveAgencyID(self):
+    def __receiveAgencyID(self):
         """
         Receive agency ID from the client
         """
@@ -98,13 +100,15 @@ class Client(multiprocessing.Process):
         """
         self.connection.close()
         self.is_done = True
-        # Send termination signal to the bet handler (None)
+        # Send termination signal to the bet handler
         # to indicate that the client is done
         if self.queue:
-            self.bet_handler_queue.put((self.agency_id, None, None))
+            self.bet_handler_queue.put(("CLIENT_DISCONNECT", self.agency_id))
             # Close the queue
             self.queue.close()
+            self.queue.join_thread()
             self.queue = None
+
     def join(self):
         """
         Join process
