@@ -158,32 +158,30 @@ func (p *Protocol) CreateAgencyIDMessage() []byte {
 }
 
 // ParseResponse: Parses the response message and returns the result
-func (p *Protocol) ParseResponse(msg []byte) (string, error) {
+func (p *Protocol) ParseResponse(msg []byte) error {
 	// The response will use the TLV format but its value will be a single byte long
 	// This is trivial now and could be done without the TLV format, but it's done so it
 	// can easily be extended in the future to handle more information.
 	if len(msg) != 3 {
-		return "", fmt.Errorf("invalid response message")
+		return fmt.Errorf("invalid response message")
 	}
 
 	// Check the type (should be response)
 	if msg[0] != 0x03 {
-		return "", fmt.Errorf("invalid response type")
+		return fmt.Errorf("invalid response type")
 	}
 
 	// Check the length (should be 1)
 	if msg[1] != 1 {
-		return "", fmt.Errorf("invalid response length")
+		return fmt.Errorf("invalid response length")
 	}
-
-	response := "success"
 
 	// Check the value (0 for failure, 1 for success)
 	if msg[2] != 1 {
-		response = "fail"
+		return fmt.Errorf("server returned an error")
 	}
 
-	return response, nil
+	return nil
 }
 
 // ParseWinners: Parses the winners message and returns the list of winners

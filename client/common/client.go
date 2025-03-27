@@ -159,14 +159,14 @@ func (c *Client) handleBatchResponse(current_batch int) bool {
 	}
 
 	// Parse the response
-	result, err := c.protocol.ParseResponse(response)
+	err = c.protocol.ParseResponse(response)
 	if err != nil {
 		log.Errorf("action: apuestas_enviadas | result: fail | client_id: %v | batch_number: %v | error: %v", c.config.ID, current_batch, err)
 		return false
 	}
 
-	// Log the result
-	log.Infof("action: apuestas_enviadas | result: %v | client_id: %v | batch_number: %v", result, c.config.ID, current_batch)
+	// Log the result if successful
+	log.Infof("action: apuestas_enviadas | result: success | client_id: %v | batch_number: %v", c.config.ID, current_batch)
 
-	return result == "success"
+	return true
 }
