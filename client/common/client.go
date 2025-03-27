@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strconv"
@@ -117,7 +118,10 @@ func (c *Client) sendBetBatches() error {
 	for c.is_running && !last_batch {
 		var err error
 		last_batch, err = c.sendNextBatch(current_batch)
-		// If there was an error sending the batch, stop sending batches
+		if err == io.EOF {
+			break
+		}
+		// If there was an error other than EOF, return it
 		if err != nil {
 			return err
 		}
@@ -139,6 +143,9 @@ func (c *Client) sendNextBatch(current_batch int) (bool, error) {
 	if err != nil {
 		log.Errorf("action: obtener_apuestas | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return false, err
+	}
+	if len(batch) == 0 {
+		return true, io.EOF
 	}
 	// Send the batch to the server
 	_, err = c.conn.SendMessage(c.protocol.CreateBetBatchMessage(batch, is_last_batch))

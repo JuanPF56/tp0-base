@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 )
@@ -53,9 +52,7 @@ func (b *BetReader) GetNextBatch() ([]Bet, bool, error) {
 		}
 		batch[i] = bet
 	}
-	// Before returning the batch, check if there are no more bets
-	eof := b.peekEOF()
-	return batch, eof, nil
+	return batch, false, nil
 }
 
 // readBet: Reads a bet from the file
@@ -90,17 +87,6 @@ func (b *BetReader) readBet() (Bet, error) {
 		Birthdate: birthdate,
 		Number:    number,
 	}, nil
-}
-
-// peekBet: Peeks if there are more bets to read
-func (b *BetReader) peekEOF() bool {
-	pos, _ := b.file.Seek(0, io.SeekCurrent)
-	_, err := b.reader.Read()
-	if err == io.EOF {
-		return true
-	}
-	b.file.Seek(pos, io.SeekStart)
-	return false
 }
 
 // CloseFile: Closes the file if it is not already closed
