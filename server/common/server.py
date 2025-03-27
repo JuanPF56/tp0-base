@@ -48,10 +48,12 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+        last_batch = False
         try:
-            bets, last_batch = self.protocol.parseBatchMessage(client_connection.recvMsg())
-            success = self._store_bet(bets)
-            client_connection.sendMsg(self.protocol.createResponse(success))
+            while not last_batch:
+                bets, last_batch = self.protocol.parseBatchMessage(client_connection.recvMsg())
+                success = self._store_bet(bets)
+                client_connection.sendMsg(self.protocol.createResponse(success))
         except OSError as e:
             logging.error(f"action: apuesta_recibida | result: fail | error: {e}")
         except ValueError as e:
