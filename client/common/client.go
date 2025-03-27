@@ -95,19 +95,19 @@ func (c *Client) checkWinners() {
 	// Wait for the response
 	response, err := c.conn.ReceiveMessage()
 	if err != nil {
-		log.Errorf("action: consultar_ganadores | result: fail | error: %v", err)
+		log.Errorf("action: consulta_ganadores | result: fail | error: %v", err)
 		return
 	}
 
 	// Parse the response
 	winners, err := c.protocol.ParseWinners(response)
 	if err != nil {
-		log.Errorf("action: consultar_ganadores | result: fail | error: %v", err)
+		log.Errorf("action: consulta_ganadores | result: fail | error: %v", err)
 		return
 	}
 
 	// Log the winners
-	log.Infof("action: consultar_ganadores | result: success | cant_ganadores: %v", len(winners))
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", len(winners))
 }
 
 // sendBetBatches: Sends the bet batches to the server
