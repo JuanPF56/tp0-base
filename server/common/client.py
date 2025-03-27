@@ -97,18 +97,14 @@ class Client(multiprocessing.Process):
         self.connection.close()
         # Send termination signal to the bet handler
         # to indicate that the client has disconnected
-        if not self.is_done:
-            self.bet_handler_queue.put(("CLIENT_DISCONNECT", self.agency_id))
-        self.is_done = True
+        self.bet_handler_queue.put(("CLIENT_DISCONNECT", self.agency_id))
 
     def join(self):
         """
         Join process
         """
-        if not self.joined:
-            self.close()
-            self.joined = True
-            super().join()
+        self.joined = True
+        super().join()
     
 
 
