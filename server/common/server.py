@@ -63,11 +63,11 @@ class Server:
                 # Accept new connections
                 client_connection = self.acceptor.accept()
                 if client_connection is not None:
+                    # Create a new queue for the client
+                    new_client_queue = self.manager.Queue()
                     # Create a new client process
                     new_client = Client(client_connection, bet_handler_queue, new_client_queue)
                     agency_id = new_client.getAgencyID()
-                    # Create a new queue for the client
-                    new_client_queue = self.manager.Queue()
                     # Register the client and its queue in the dictionaries
                     self.clients[agency_id] = new_client
                     self.clients_queues[agency_id] = new_client_queue
