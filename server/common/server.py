@@ -101,6 +101,8 @@ class Server:
         try:
             all_bets = load_bets()
             winners = {}
+            for client in self.clients.values():
+                winners[client.getAgencyID()] = []
             for bet in all_bets:
                 if has_won(bet):
                     winners[bet.agency].append(bet)

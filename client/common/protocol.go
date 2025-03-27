@@ -199,8 +199,8 @@ func (p *Protocol) ParseWinners(msg []byte) ([]Winner, error) {
 		return nil, fmt.Errorf("invalid winners type")
 	}
 
-	// Check the length
-	length := int(msg[1])
+	// Check the length (next 2 bytes)
+	length := int(binary.BigEndian.Uint16(msg[1:3]))
 
 	if length == 0 {
 		// No winners
@@ -211,9 +211,13 @@ func (p *Protocol) ParseWinners(msg []byte) ([]Winner, error) {
 	winners := make([]Winner, 0)
 
 	// Start at the first winner
-	i := 2
+	i := 3
 	// Loop until the end of the message
 	for i < len(msg) {
+		// Check if there's a winner field
+		if msg[i] != 0x01 {
+			return nil, fmt.Errorf("invalid winner type")
+		}
 		// Check if length is correct
 		if msg[i+1] != 8 {
 			return nil, fmt.Errorf("invalid winner length")

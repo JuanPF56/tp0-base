@@ -231,6 +231,7 @@ class Protocol:
         message = bytes([0x05])
         message += (len(winners) * 8).to_bytes(2, byteorder='big')
         for winner in winners:
+            message += bytes([0x01, 0x08])
             message += bytes([0x01, 0x04]) + int(winner.document).to_bytes(4, byteorder='big')
             message += bytes([0x02, 0x04]) + int(winner.number).to_bytes(4, byteorder='big')
         return message
