@@ -124,5 +124,6 @@ class BetHandler(multiprocessing.Process):
         """
         Join process
         """
-        self.joined = True
-        super().join()
+        if not self.joined:
+            self.joined = True
+            super().join()

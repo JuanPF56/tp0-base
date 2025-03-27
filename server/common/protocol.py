@@ -12,7 +12,7 @@ each field is indicated by a type byte, a length byte and the value itself.
 
     * TLV (Type, Length, Value) format
         * Type: 1 byte
-        * Length: 1 byte (or 2 bytes for Batch type)
+	    * Length: 1 byte (or 2 bytes for Batch and Winners types)
         * Value: n bytes
 
     * Protocol types:
@@ -110,7 +110,7 @@ class Protocol:
             current_byte += 1
             length += bet_length
             # Parse the bet and get the next byte to parse
-            bet, current_byte = self._parseBet(message, current_byte, bet_length, amount_of_bets)
+            bet, current_byte = self.__parseBet(message, current_byte, bet_length, amount_of_bets)
             bets.append(bet)
         
         # Check that the agency ID is next
@@ -149,7 +149,7 @@ class Protocol:
         return bets, last_batch     
 
 
-    def _parseBet(self, message, current_byte, total_length, amount_of_bets):
+    def __parseBet(self, message, current_byte, total_length, amount_of_bets):
         """
         Parse the bet message
 
@@ -165,7 +165,7 @@ class Protocol:
 
         # Parse all the fields
         while start < current_byte + total_length + 10:
-            field_type, field_value, field_length = self._get_next_bet_field(message, start)
+            field_type, field_value, field_length = self.__getNextBetField(message, start)
             fields[field_type] = field_value# Add the length of the field's value
             length += field_length
             # Move to the next field
@@ -185,7 +185,7 @@ class Protocol:
             logging.error(f"action: apuesta_recibida | result: fail | cantidad: {amount_of_bets}")
             raise ValueError("missing fields in Bet message")
 
-    def _get_next_bet_field(self, message, start):
+    def __getNextBetField(self, message, start):
         """
         Get the next field from the bet
 
@@ -210,13 +210,11 @@ class Protocol:
         Create a response message to be sent to the client
 
         The response message uses TLV format with a single field of type
-        0x02 indicating the result of the operation.
+        0x03 indicating the result of the operation.
         
         This is trivial now and could be done without the TLV format,
         but it's done so it can easily be extended in the future to
         handle more information.
-        
-	    TODO: Handle more complex responses in future iterations
         """
         return bytes([0x03, 0x01, 0x01 if success else 0x00])
     

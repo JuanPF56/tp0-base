@@ -19,6 +19,7 @@ class Server:
         self.clients_to_await = clients
         self.is_running = True
 
+        # Create a manager to handle shared queues
         self.manager = multiprocessing.Manager()
 
         self.clients = {}
@@ -48,8 +49,10 @@ class Server:
         blocking queues.
         """
 
-        # Start the bet handler process
+        # Create a queue for the bet handler
         bet_handler_queue = self.manager.Queue()
+        # Start the bet handler process, passing both its queue and the
+        # shared dictionary of client queues
         self.bet_handler = BetHandler(self.clients_to_await, bet_handler_queue, self.clients_queues)
         self.bet_handler.start()
 
@@ -60,12 +63,16 @@ class Server:
                 # Accept new connections
                 client_connection = self.acceptor.accept()
                 if client_connection is not None:
-                    new_client_queue = self.manager.Queue()
+                    # Create a new client process
                     new_client = Client(client_connection, bet_handler_queue, new_client_queue)
                     agency_id = new_client.getAgencyID()
+                    # Create a new queue for the client
+                    new_client_queue = self.manager.Queue()
+                    # Register the client and its queue in the dictionaries
                     self.clients[agency_id] = new_client
                     self.clients_queues[agency_id] = new_client_queue
                     logging.debug(f"action: aceptar_conexion | result: success | agency_id: {agency_id}")
+                    # Start the client process
                     new_client.start()
             except OSError as e:
                 # If an error occurs, stop the server

@@ -15,7 +15,7 @@ type Protocol struct {
 
  * TLV (Type, Length, Value) format
 	* Type: 1 byte
-	* Length: 1 byte (or 2 bytes for Batch type)
+	* Length: 1 byte (or 2 bytes for Batch and Winners types)
 	* Value: n bytes
 
  * Protocol types:
