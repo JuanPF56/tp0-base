@@ -128,7 +128,10 @@ func main() {
 		LoopAmount:     v.GetInt("loop.amount"),
 		LoopPeriod:     v.GetDuration("loop.period"),
 		BatchMaxAmount: v.GetInt("batch.maxAmount"),
-		BatchFilename:  v.GetString("batch.filename"),
+		// BatchFilename:  v.GetString("batch.filename"),
+		// Hardcoded filename for the dataset, should be in config file but
+		// tests erase the value.
+		BatchFilename: "dataset.csv",
 	}
 
 	client := common.NewClient(clientConfig)
