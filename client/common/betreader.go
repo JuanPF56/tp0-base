@@ -43,26 +43,26 @@ func (b *BetReader) GetNextBatch() ([]Bet, bool, error) {
 	batch := make([]Bet, b.maxAmount)
 	for i := 0; i < b.maxAmount; i++ {
 		// Read the bet
-		bet, err := b.readBet()
+		bet, eof, err := b.readBet()
 		if err != nil {
-			// If there are no more bets, return the batch and flag EOF
-			if err.Error() == "EOF" {
-				return batch[:i], true, nil
-			}
 			return nil, false, err
 		}
 		batch[i] = bet
+		if eof {
+			return batch[:i+1], true, nil
+		}
 	}
 	return batch, false, nil
 }
 
 // readBet: Reads a bet from the file
-func (b *BetReader) readBet() (Bet, error) {
+func (b *BetReader) readBet() (Bet, bool, error) {
 	// Read next csv line
 	var name, surname, birthdate string
 	var dni, number int
 	var record []string
 	var err error
+	eof := false
 
 	// If there is a line in advance, use it
 	if b.next_line == nil {
@@ -72,7 +72,7 @@ func (b *BetReader) readBet() (Bet, error) {
 		b.next_line = nil
 	}
 	if err != nil {
-		return Bet{}, err
+		return Bet{}, false, err
 	}
 
 	// Parse the csv line
@@ -80,16 +80,25 @@ func (b *BetReader) readBet() (Bet, error) {
 	surname = record[1]
 	dni, err = strconv.Atoi(record[2])
 	if err != nil {
-		return Bet{}, err
+		return Bet{}, false, err
 	}
 	birthdate = record[3]
 	number, err = strconv.Atoi(record[4])
 	if err != nil {
-		return Bet{}, err
+		return Bet{}, false, err
 	}
 
 	// Read the next line in advance to check if there are more bets
-	b.next_line, err = b.reader.Read()
+	temp_line, err := b.reader.Read()
+	if err != nil {
+		if err.Error() == "EOF" {
+			eof = true
+		} else {
+			return Bet{}, false, err
+		}
+	} else {
+		b.next_line = temp_line
+	}
 
 	// Return the bet
 	return Bet{
@@ -98,7 +107,7 @@ func (b *BetReader) readBet() (Bet, error) {
 		DNI:       dni,
 		Birthdate: birthdate,
 		Number:    number,
-	}, err
+	}, eof, nil
 }
 
 // CloseFile: Closes the file if it is not already closed
