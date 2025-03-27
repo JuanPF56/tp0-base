@@ -29,6 +29,10 @@ each field is indicated by a type byte, a length byte and the value itself.
             * 0x05: Number (uint32, 4 bytes)
         * 0x03: Response (1 byte)
         * 0x04: Agency ID (4 bytes)
+        * 0x05: Winners (n bytes, max 65535, composed of the following fields)
+            * 0x01: Winner (n bytes, could be 0 or multiple)
+                * 0x01: DNI (uint32, 4 bytes)
+                * 0x02: Number (uint32, 4 bytes)
 """
 class Protocol:
     def __init__(self):
@@ -51,7 +55,7 @@ class Protocol:
             raise ValueError("invalid message format, expected 4 bytes for agency ID")
         # Get the agency ID
         agency_id = int.from_bytes(message[2:6], byteorder='big')
-        
+
         return agency_id
 
     def parseBatchMessage(self, message):
@@ -215,3 +219,18 @@ class Protocol:
 	    TODO: Handle more complex responses in future iterations
         """
         return bytes([0x03, 0x01, 0x01 if success else 0x00])
+    
+    def createWinners(self, winners):
+        """
+        Create a winners message to be sent to the client
+
+        The winners message uses TLV format with a variable amount of
+        fields, one for each winner. Each field is composed of the
+        winner's DNI and the number they bet on.
+        """
+        message = bytes([0x05])
+        message += (len(winners) * 8).to_bytes(2, byteorder='big')
+        for winner in winners:
+            message += bytes([0x01, 0x04]) + int(winner.document).to_bytes(4, byteorder='big')
+            message += bytes([0x02, 0x04]) + int(winner.number).to_bytes(4, byteorder='big')
+        return message

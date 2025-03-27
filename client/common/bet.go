@@ -7,3 +7,8 @@ type Bet struct {
 	Birthdate string
 	Number    int
 }
+
+type Winner struct {
+	DNI    uint32
+	Number uint32
+}

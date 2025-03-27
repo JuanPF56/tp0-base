@@ -32,6 +32,10 @@ type Protocol struct {
 		* 0x05: Number (uint32, 4 bytes)
 	* 0x03: Response (1 byte)
 	* 0x04: Agency ID (4 bytes)
+	* 0x05: Winners (n bytes, max 65535, composed of the following fields)
+		* 0x01: Winner (n bytes, could be 0 or multiple)
+			* 0x01: DNI (uint32, 4 bytes)
+			* 0x02: Number (uint32, 4 bytes)
 */
 
 // CreateBetBatchMessage: Creates a batch message with the given list of bets and EOF flag using TLV (type, length, value) format
@@ -180,4 +184,65 @@ func (p *Protocol) ParseResponse(msg []byte) (string, error) {
 	}
 
 	return response, nil
+}
+
+// ParseWinners: Parses the winners message and returns the list of winners
+func (p *Protocol) ParseWinners(msg []byte) ([]Winner, error) {
+	// The winners message will use the TLV format, with the value being a list of winners
+	// Each winner will have a DNI and a number
+	if len(msg) < 3 {
+		return nil, fmt.Errorf("invalid winners message")
+	}
+
+	// Check the type (should be winners)
+	if msg[0] != 0x05 {
+		return nil, fmt.Errorf("invalid winners type")
+	}
+
+	// Check the length
+	length := int(msg[1])
+
+	if length == 0 {
+		// No winners
+		return []Winner{}, nil
+	}
+
+	// Parse the winners
+	winners := make([]Winner, 0)
+
+	// Start at the first winner
+	i := 2
+	// Loop until the end of the message
+	for i < len(msg) {
+		// Check if length is correct
+		if msg[i+1] != 8 {
+			return nil, fmt.Errorf("invalid winner length")
+		}
+		// Check if there's a DNI field
+		if msg[i+2] != 0x01 {
+			return nil, fmt.Errorf("invalid winner DNI type")
+		}
+		// Check DNI length
+		dniLength := int(msg[i+3])
+		if dniLength != 4 {
+			return nil, fmt.Errorf("invalid winner DNI length")
+		}
+		dni := binary.BigEndian.Uint32(msg[i+4 : i+8])
+		// Check if there's a number field
+		if msg[i+8] != 0x02 {
+			return nil, fmt.Errorf("invalid winner number type")
+		}
+		// Check number length
+		numberLength := int(msg[i+9])
+		if numberLength != 4 {
+			return nil, fmt.Errorf("invalid winner number length")
+		}
+		number := binary.BigEndian.Uint32(msg[i+10 : i+14])
+		// Append the winner
+		winners = append(winners, Winner{DNI: dni, Number: number})
+		// Move to the next winner
+		i += 14
+	}
+
+	return winners, nil
 }
